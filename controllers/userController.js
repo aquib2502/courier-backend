@@ -1,26 +1,38 @@
 import User from "../models/userModel.js";
 
 const registerUser = async (req, res) => {
-    const{fullname, email, password, confirmPassword} = req.body;
-    try{
-        const existingUser =await User.findOne({email});
-        if (existingUser){
-            return res.status(400).json({message: "User already exists"});
-        }
+    const { fullname, email, password, confirmPassword } = req.body;
 
-        const user = new User({
-            fullname,
-            email,
-            password,
-            confirmPassword
-        });
+    console.log("Received data:", { fullname, email, password, confirmPassword });
 
+    if (!fullname || !email || !password || !confirmPassword) {
+        return res.status(400).json({ message: "All fields are required" });
+    }
+
+    if (password !== confirmPassword) {
+        return res.status(400).json({ message: "Passwords do not match" });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+        return res.status(400).json({ message: "Email already in use" });
+    }
+
+    // Log data before saving to ensure everything is correct
+    console.log('About to save user with data:', { fullname, email, password });
+
+    const user = new User({ fullname, email, password, confirmPassword }); // Include confirmPassword for logging purposes
+
+    try {
         await user.save();
-        res.status(201).json({message: "User registered successfully", user});
-    }catch(error){
-        res.status(500).json({message: "Server error", error});
+        return res.status(201).json({ message: "Registration successful" });
+    } catch (err) {
+        console.error("Error during registration:", err);
+        return res.status(500).json({ message: "Server error" });
     }
 };
+
 
 const loginUser = async (req, res) => {
     const { email, password } = req.body;
