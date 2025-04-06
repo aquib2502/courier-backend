@@ -1,4 +1,5 @@
 import User from "../models/userModel.js";
+import jwt from 'jsonwebtoken'
 
 const registerUser = async (req, res) => {
     const { fullname, email, password, confirmPassword } = req.body;
@@ -36,24 +37,27 @@ const registerUser = async (req, res) => {
 
 const loginUser = async (req, res) => {
     const { email, password } = req.body;
-    
+
     try {
         const user = await User.findOne({ email });
+
         if (!user) {
-            return res.status(400).json({ message: "User not found. Please register" });
+            return res.status(400).json({ message: 'User not found. Please register.' });
         }
 
-        // Check if password is valid by calling on the user instance
-        const isValidPassword = await user.isPasswordValid(password); // Fix: Call on the instance of user
+        const isValidPassword = await user.isPasswordValid(password);
         if (!isValidPassword) {
-            return res.status(400).json({ message: "Invalid password" });
+            return res.status(400).json({ message: 'Invalid password.' });
         }
-        
-        // Successful login
-        res.status(200).json({ message: "Login successful" });
-    } catch (error) {
-        console.error("Login error:", error); // Log detailed error
-        res.status(500).json({ message: "Server error", error: error.message }); // Send detailed error message
+
+        // Generate JWT token with the secret from the environment variable
+        const token = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+        // Send token to frontend
+        res.status(200).json({ message: 'Login successful', token });
+    } catch (err) {
+        console.error('Login error:', err);
+        res.status(500).json({ message: 'Server error' });
     }
 };
 
