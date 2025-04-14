@@ -15,7 +15,7 @@ const orderSchema = new Schema({
   state: { type: String, required: true },
 
   // Shipment information
-  shipmentType: { type: String, required: true },
+  shipmentType: { type: String },
   shipmentDetails: {
     weight: { type: String },
     length: { type: String },
@@ -24,18 +24,18 @@ const orderSchema = new Schema({
   },
 
   // Order information
-  invoiceNo: { type: String, required: true },
-  invoiceCurrency: { type: String, required: true },
-  orderDate: { type: Date, required: true },
-  etnNumber: { type: String, required: true },
+  invoiceNo: { type: String },
+  invoiceCurrency: { type: String },
+  orderDate: { type: Date },
+  etnNumber: { type: String },
 
   // Item information
   items: [
     {
-      productName: { type: String, required: true },
-      sku: { type: String, required: true },
-      quantity: { type: Number, required: true },
-      price: { type: Number, required: true }
+      productName: { type: String },
+      sku: { type: String },
+      quantity: { type: Number },
+      price: { type: Number }
     }
   ]
 });
