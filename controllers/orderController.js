@@ -3,29 +3,7 @@ import Order from '../models/orderModel.js'; // Import the Order model
 // Controller function to handle order creation
 export const createOrder = async (req, res) => {
   try {
-    const {
-      firstName, lastName, mobile, pickupAddress, address1, pincode, city, country, state,
-      shipmentType, shipmentDetails, invoiceNo, invoiceCurrency, orderDate, etnNumber, items
-    } = req.body;
-
-    const newOrder = new Order({
-      firstName,
-      lastName,
-      mobile,
-      pickupAddress,
-      address1,
-      pincode,
-      city,
-      country,
-      state,
-      shipmentType,
-      shipmentDetails,
-      invoiceNo,
-      invoiceCurrency,
-      orderDate,
-      etnNumber,
-      items
-    });
+    const newOrder = new Order(req.body);
 
     await newOrder.save();
 
