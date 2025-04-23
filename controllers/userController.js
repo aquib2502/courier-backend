@@ -1,5 +1,7 @@
 import User from "../models/userModel.js";
 import jwt from 'jsonwebtoken'
+import Order from "../models/orderModel.js";
+
 
 const registerUser = async (req, res) => {
     const { fullname, email, password, confirmPassword } = req.body;
@@ -61,4 +63,44 @@ const loginUser = async (req, res) => {
     }
 };
 
-export {registerUser, loginUser};
+// Controller function to fetch orders by userId
+ const getOrdersByUserId = async (req, res) => {
+    try {
+      // Extract the userId from the request parameters
+      const { user } = req.params;
+  
+      // Check if userId is provided
+      if (!user) {
+        return res.status(400).json({
+          success: false,
+          message: 'User ID is required'
+        });
+      }
+  
+      // Fetch the orders by userId
+      const orders = await Order.find({ user }).populate('user', 'firstName lastName email');  // Populate user details if needed
+  
+      if (orders.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'No orders found for this user'
+        });
+      }
+  
+      // Return the orders if found
+      res.status(200).json({
+        success: true,
+        message: 'Orders fetched successfully',
+        data: orders
+      });
+  
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Something went wrong, please try again later.'
+      });
+    }
+  };
+
+export {registerUser, loginUser, getOrdersByUserId};

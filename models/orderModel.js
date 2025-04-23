@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 
+
 const { Schema } = mongoose;
 
 const productSchema = new mongoose.Schema({
@@ -9,6 +10,11 @@ const productSchema = new mongoose.Schema({
 });
 
 const orderSchema = new Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User', // This references the User model
+    required: true
+  },
   // Shipping information
   firstName: { type: String, required: true },
   lastName: { type: String, required: true },
@@ -20,6 +26,7 @@ const orderSchema = new Schema({
   city: { type: String, required: true },
   country: { type: String, required: true },
   state: { type: String, required: true },
+
 
   // Shipment information
   shipmentType: { type: String },
@@ -34,7 +41,21 @@ const orderSchema = new Schema({
   invoiceDate: { type: Date },
 
   // Item information
-  productItems: [productSchema]
+  productItems: [productSchema],
+
+  status: {
+    type: String,
+    enum: [
+        'Pending Payment',
+        'Payment Received',
+        'Ready',
+        'Shipped',
+        'Delivered',
+        'Cancelled',
+        'Refunded'
+    ],
+    default: 'Pending Payment' // Default status when a new order is created
+},
 });
 
 const Order = mongoose.model('Order', orderSchema);
