@@ -42,19 +42,25 @@ const orderSchema = new Schema({
 
   // Item information
   productItems: [productSchema],
-
-  status: {
+  paymentStatus: {
     type: String,
     enum: [
-        'Pending Payment',
-        'Payment Received',
+      'Payment Pending',
+      'Payment Received'
+    ],
+    default: 'Payment Pending'
+  },
+  orderStatus: {
+    type: String,
+    enum: [
+        'Drafts',
         'Ready',
         'Shipped',
         'Delivered',
         'Cancelled',
         'Refunded'
     ],
-    default: 'Pending Payment' // Default status when a new order is created
+    default: 'Drafts'
 },
 });
 
