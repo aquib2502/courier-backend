@@ -1,7 +1,7 @@
 import Order from '../models/orderModel.js'; // Import the Order model
 
 // Controller function to handle order creation
-export const createOrder = async (req, res) => {
+ const createOrder = async (req, res) => {
   try {
     console.log('Request Body:', req.body);  // Log the request body to verify if userId is there
 
@@ -39,3 +39,40 @@ export const createOrder = async (req, res) => {
     });
   }
 };
+
+
+const updateOrderStatus = async (req, res) => {
+try {
+  const { orderId } = req.params;
+  const { orderStatus } = req.body;
+
+  const updatedOrder = await Order.findByIdAndUpdate(
+    orderId, 
+    { orderStatus }, 
+    { new: true }
+  );
+
+  if (!updatedOrder) {
+    return res.status(404).json({ 
+      success: false, 
+      message: 'Order not found' 
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Order status updated successfully',
+    data: updatedOrder
+  });
+} catch (error) {
+  console.error('Error updating order status:', error);
+  res.status(500).json({
+    success: false,
+    message: 'Something went wrong, please try again later.'
+  });
+
+}
+
+}
+
+export { createOrder, updateOrderStatus };

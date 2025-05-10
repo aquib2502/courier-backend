@@ -46,7 +46,9 @@ const orderSchema = new Schema({
     type: String,
     enum: [
       'Payment Pending',
-      'Payment Received'
+      'Payment Received',
+      'Packed',
+      'Manifested'
     ],
     default: 'Payment Pending'
   },
@@ -55,6 +57,8 @@ const orderSchema = new Schema({
     enum: [
         'Drafts',
         'Ready',
+        'Packed',
+       'Manifested',
         'Shipped',
         'Delivered',
         'Cancelled',
