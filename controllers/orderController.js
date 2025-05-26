@@ -44,11 +44,11 @@ import Order from '../models/orderModel.js'; // Import the Order model
 const updateOrderStatus = async (req, res) => {
 try {
   const { orderId } = req.params;
-  const { orderStatus } = req.body;
+  const { orderStatus, manifestStatus, receivedAt } = req.body;
 
   const updatedOrder = await Order.findByIdAndUpdate(
     orderId, 
-    { orderStatus }, 
+    { orderStatus, manifestStatus, receivedAt }, 
     { new: true }
   );
 

@@ -81,7 +81,11 @@ const orderSchema = new Schema({
 
   lastMileAWB: {
     type: String
-  }
+  },
+    receivedAt: {
+    type: Date,
+    default: null
+  },
 });
 
 const Order = mongoose.model('Order', orderSchema);

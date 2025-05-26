@@ -49,6 +49,12 @@ const manifestSchema = new mongoose.Schema({
   estimatedPickup: {
     type: Date
   },
+  pickupDate: {
+    type: Date
+  },
+  pickupTime: { 
+    type: String
+  },
   createdAt: {
     type: Date,
     default: Date.now

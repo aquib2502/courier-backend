@@ -171,7 +171,7 @@ export const getManifestById = async (req, res) => {
 export const updateManifestStatus = async (req, res) => {
   try {
     const { manifestId } = req.params;
-    const { status } = req.body;
+    const { status, pickupDate, pickupTime } = req.body;
 
     const validStatuses = ['open', 'pickup_requested', 'closed'];
     if (!validStatuses.includes(status)) {
@@ -183,7 +183,7 @@ export const updateManifestStatus = async (req, res) => {
 
     const updatedManifest = await Manifest.findByIdAndUpdate(
       manifestId,
-      { status },
+      { status, pickupDate, pickupTime, updatedAt: new Date() },
       { new: true }
     ).populate('orders');
 
