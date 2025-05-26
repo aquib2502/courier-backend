@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 
-
 const { Schema } = mongoose;
 
 const productSchema = new mongoose.Schema({
@@ -27,7 +26,6 @@ const orderSchema = new Schema({
   country: { type: String, required: true },
   state: { type: String, required: true },
 
-
   // Shipment information
   shipmentType: { type: String },
   weight: { type: String },
@@ -42,6 +40,7 @@ const orderSchema = new Schema({
 
   // Item information
   productItems: [productSchema],
+  
   paymentStatus: {
     type: String,
     enum: [
@@ -52,20 +51,37 @@ const orderSchema = new Schema({
     ],
     default: 'Payment Pending'
   },
+  
   orderStatus: {
     type: String,
     enum: [
-        'Drafts',
-        'Ready',
-        'Packed',
-       'Manifested',
-        'Shipped',
-        'Delivered',
-        'Cancelled',
-        'Refunded'
+      'Drafts',
+      'Ready',
+      'Packed',
+      'Manifested',
+      'Shipped',
+      'Delivered',
+      'Cancelled',
+      'Refunded'
     ],
     default: 'Drafts'
-},
+  },
+
+  // Manifest-related fields
+  manifestStatus: {
+    type: String,
+    enum: ['open', 'manifested', 'dispatched'],
+    default: 'open'
+  },
+  
+  manifest: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Manifest'
+  },
+
+  lastMileAWB: {
+    type: String
+  }
 });
 
 const Order = mongoose.model('Order', orderSchema);

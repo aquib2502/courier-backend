@@ -103,7 +103,7 @@ const loginUser = async (req, res) => {
     }
   };
 
-  const getUserDetails =async (req,res) =>{
+  const   getUserDetails =async (req,res) =>{
     try{
         const {userId} = req.params;
         if(!userId){

@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import connectDb from './db_config/dbConfig.js';
 import userRoutes from './routes/userRoutes.js';
 import orderRoutes from './routes/orderRoutes.js'; // Import the order routes
+import manifestRoutes from './routes/manifestRoutes.js'; // Import the manifest routes
 
 dotenv.config();
 
@@ -23,6 +24,8 @@ app.use('/api/user', userRoutes )
 
 // Use the order routes
 app.use('/api/orders', orderRoutes);
+
+app.use('/api/manifests', manifestRoutes); // Use the manifest routes
 
 
 const PORT =process.env.PORT
