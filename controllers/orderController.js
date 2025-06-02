@@ -72,7 +72,35 @@ try {
   });
 
 }
-
 }
 
-export { createOrder, updateOrderStatus };
+
+const getTotalOrderCount = async (req, res) => {
+  try {
+    // Count all orders in the database (not user-specific)
+    const totalCount = await Order.countDocuments({});
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        totalCount: totalCount
+      }
+    });
+  } catch (error) {
+    console.error('Error getting total order count:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get order count'
+    });
+  }
+};
+
+// Generate serial number based on total count
+const generateSerialNumber = (count) => {
+  // Pad with zeros to make it 4 digits
+  const paddedCount = String(count).padStart(4, '0');
+  return `TTE-${paddedCount}`;
+};
+
+
+export { createOrder, updateOrderStatus, getTotalOrderCount };
