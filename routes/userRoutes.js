@@ -1,14 +1,29 @@
 import express from 'express';
-import { registerUser, loginUser, getOrdersByUserId, getUserDetails } from '../controllers/userController.js';
-
+import { registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails } from '../controllers/userController.js';
+import upload from '../middlewares/upload.js';
 const router = express.Router();
 
-router.post('/registerUser', registerUser);
+// Upload multiple files
+router.post(
+  "/registerUser",
+  upload.fields([
+    { name: "aadharProof", maxCount: 1 },
+    { name: "panProof", maxCount: 1 },
+    { name: "gstProof", maxCount: 1 },
+    { name: "iecProof", maxCount: 1 },
+  ]),
+  registerUser
+);
+
+
+
 router.post('/loginUser', loginUser);
 
 // Route to fetch orders by userId
 router.get('/orders/:user', getOrdersByUserId);
 
 router.get('/getuser/:userId', getUserDetails); // Route to fetch user details by userId
+
+router.put('/updateuser/:userId', updateUserDetails)
 
 export default router;

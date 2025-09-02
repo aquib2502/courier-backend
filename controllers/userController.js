@@ -3,38 +3,48 @@ import jwt from 'jsonwebtoken'
 import Order from "../models/orderModel.js";
 
 
-const registerUser = async (req, res) => {
-    const { fullname, email, password, confirmPassword } = req.body;
-
-    console.log("Received data:", { fullname, email, password, confirmPassword });
-
-    if (!fullname || !email || !password || !confirmPassword) {
-        return res.status(400).json({ message: "All fields are required" });
-    }
-
-    if (password !== confirmPassword) {
-        return res.status(400).json({ message: "Passwords do not match" });
-    }
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-        return res.status(400).json({ message: "Email already in use" });
-    }
-
-    // Log data before saving to ensure everything is correct
-    console.log('About to save user with data:', { fullname, email, password });
-
-    const user = new User({ fullname, email, password, confirmPassword }); // Include confirmPassword for logging purposes
-
+  const registerUser = async (req, res) => {
     try {
-        await user.save();
-        return res.status(201).json({ message: "Registration successful" });
+      const { fullname, email, password, confirmPassword, aadharNumber, panNumber, gstNumber, iecNumber } = req.body;
+
+      if (!fullname || !email || !password || !confirmPassword || !aadharNumber || !panNumber || !gstNumber || !iecNumber) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+
+      if (password !== confirmPassword) {
+        return res.status(400).json({ message: "Passwords do not match" });
+      }
+
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+
+      // File uploads
+      const user = new User({
+        fullname,
+        email,
+        password,
+        confirmPassword,
+        aadharNumber,
+        panNumber,
+        gstNumber,
+        iecNumber,
+        aadharProof: req.files?.aadharProof?.[0]?.path,
+        panProof: req.files?.panProof?.[0]?.path,
+        gstProof: req.files?.gstProof?.[0]?.path,
+        iecProof: req.files?.iecProof?.[0]?.path,
+      });
+
+      await user.save();
+      res.status(201).json({ message: "Registration successful. Pending admin approval." });
+
     } catch (err) {
-        console.error("Error during registration:", err);
-        return res.status(500).json({ message: "Server error" });
+      console.error("Error in registerUser:", err);
+      res.status(500).json({ message: "Server error" });
     }
-};
+  };
+
 
 
 const loginUser = async (req, res) => {
@@ -121,6 +131,23 @@ const loginUser = async (req, res) => {
     }
   }
 
+  const updateUserDetails = async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const updateData = req.body;
+      if (!userId) {
+        return res.status(400).json({ message: "User ID is required" });
+      }
+      const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true }).select("-password -confirmPassword");
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.status(200).json({ message: "User details updated successfully", user: updatedUser });
+    } catch (error) {
+      console.error("Error updating user details:", error);
+      res.status(500).json({ message: "Server error" });
+    } 
+  };
 
 
-export {registerUser, loginUser, getOrdersByUserId, getUserDetails};
+export {registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails};

@@ -2,55 +2,55 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
-    fullname: {
-        type: String,
-        required: [true, 'Full name is required'],
-        trim: true
-    },
-    email: {
-        type: String,
-        required: [true, 'Email is required'],
-        unique: true,
-        trim: true,
-        lowercase: true,
-        validate: {
-            validator: function (v) {
-                return /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/.test(v);
-            },
-            message: 'Invalid email format'
+    fullname: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    password: { type: String, required: true, minlength: 6 },
+    confirmPassword: { type: String, required: true, minlength: 6 },
+    mobile: { type: String, trim: true },
+    // Multiple pickup addresses as an array of objects
+    pickupAddresses: [
+        {
+            addressLine1: { type: String, required: true },
+            addressLine2: { type: String },
+            addressLine3: { type: String },
+            city: { type: String, required: true },
+            state: { type: String, required: true },
+            postalCode: { type: String, required: true },
+            country: { type: String, required: true }
         }
-    },
-    password: {
-        type: String,
-        required: [true, 'Password is required'],
-        minlength: [6, 'Password must be at least 6 characters long']
-    },
-    confirmPassword: { // Make sure it's named `confirmPassword`
-        type: String,
-        required: [true, 'Confirm password is required'],
-        minlength: [6, 'Confirm password must be at least 6 characters long']
-    }
-});
+    ],
 
-// Pre-save hook to ensure password and confirmPassword match
+    // ✅ New fields
+    aadharNumber: { type: String, required: true },
+    panNumber: { type: String, required: true },
+    gstNumber: { type: String, required: true },
+    iecNumber: { type: String, required: true },
+
+    // File upload paths
+    aadharProof: { type: String },
+    panProof: { type: String },
+    gstProof: { type: String },
+    iecProof: { type: String },
+
+    // Approval flow
+    isApproved: { type: Boolean, default: false },
+}, { timestamps: true });
+
+// ✅ Pre-save hook
 userSchema.pre('save', function (next) {
     if (this.password !== this.confirmPassword) {
         return next(new Error('Password and Confirm Password do not match'));
     }
-
-    // Hash password before saving to the database
     this.password = bcrypt.hashSync(this.password, 10);
-    this.confirmPassword = undefined; // Remove confirmPassword before saving to DB
+    this.confirmPassword = undefined;
     next();
 });
-
-
 
 // Method to check if the entered password matches the stored password
 userSchema.methods.isPasswordValid = function (password) {
   return bcrypt.compareSync(password, this.password);
 };
 
-const User = mongoose.model('User', userSchema);
 
+const User = mongoose.model('User', userSchema);
 export default User;
