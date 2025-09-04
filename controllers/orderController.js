@@ -1,4 +1,5 @@
 import Order from '../models/orderModel.js'; // Import the Order model
+import User from '../models/userModel.js';
 
 // Controller function to handle order creation
  const createOrder = async (req, res) => {
@@ -18,10 +19,21 @@ import Order from '../models/orderModel.js'; // Import the Order model
     // Log the userId for debugging
     console.log('Received userId:', user);
 
+    const userKyc = await User.findById(user);
+    
+    if(userKyc.kycStatus !== 'approved') {
+      return res.status(400).json({
+        success: false,
+        message: 'User KYC is not approved. Cannot create order.'
+      });
+    }
+
+    const serialNumber = await  generateSerialNumber();
     // Create a new order instance, ensuring userId is included
     const newOrder = new Order({
       ...orderData,
-      user: user  // Save the userId in the order
+      user: user,
+      invoiceNo: serialNumber // Save the userId in the order
     });
 
     await newOrder.save();
@@ -95,12 +107,34 @@ const getTotalOrderCount = async (req, res) => {
   }
 };
 
-// Generate serial number based on total count
-const generateSerialNumber = (count) => {
-  // Pad with zeros to make it 4 digits
-  const paddedCount = String(count).padStart(4, '0');
-  return `TTE-${paddedCount}`;
+// Generate serial number automatically
+const generateSerialNumber = async () => {
+  // Count existing orders
+  const totalCount = await Order.countDocuments({});
+
+  // Format the new serial number
+  const paddedCount = String(totalCount + 1).padStart(6, '0');
+  return `TTE${paddedCount}`;
 };
 
 
-export { createOrder, updateOrderStatus, getTotalOrderCount };
+const getAllOrders = async (req, res) => {
+  try {
+    const orders = await Order.find().populate('user', 'firstname lastname email mobile'); // Populate user details
+    res.status(200).json({
+      success: true,
+      data: orders
+    });
+
+  } catch (error) {
+     res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve orders'
+    }, error);
+    console.error('Error retrieving orders:', error);
+
+  }
+};
+
+
+export { createOrder, updateOrderStatus, getTotalOrderCount, getAllOrders };

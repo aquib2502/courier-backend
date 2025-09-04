@@ -5,7 +5,8 @@ import {
   getManifestsByUser,
   getManifestById,
   updateManifestStatus,
-  getPackedOrdersForManifest
+  getPackedOrdersForManifest,
+  getAllManifests
 } from '../controllers/manifestController.js';
 
 const router = express.Router();
@@ -14,8 +15,10 @@ const router = express.Router();
 router.post('/create', createManifest);
 
 // Get all manifests for a user
-router.get('/user/:userId', getManifestsByUser);
 
+router.get('/getallmanifest', getAllManifests)
+
+router.get('/user/:userId', getManifestsByUser);
 // Get manifest by ID
 router.get('/:manifestId', getManifestById);
 

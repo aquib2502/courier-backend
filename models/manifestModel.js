@@ -12,12 +12,19 @@ const manifestSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  pickupAddress: {
-    name: { type: String, required: true },
-    address: { type: String, required: true },
-    contactPerson: { type: String },
-    contactNumber: { type: String }
-  },
+ pickupAddresses: [
+        {
+            addressLine1: { type: String, required: true },
+            addressLine2: { type: String },
+            addressLine3: { type: String },
+            city: { type: String, required: true },
+            state: { type: String, required: true },
+            postalCode: { type: String, required: true },
+            country: { type: String, required: true },
+            contactPerson: { type: String },
+            contactNumber: { type: String }
+        }
+    ],
   orders: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Order'
@@ -28,7 +35,7 @@ const manifestSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'pickup_requested', 'closed'],
+    enum: ['open', 'pickup_requested', 'closed', 'picked_up'],
     default: 'open'
   },
   totalOrders: {

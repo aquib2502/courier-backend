@@ -3,10 +3,15 @@ import Manifest from '../models/manifestModel.js';
 import Order from '../models/orderModel.js';
 
 // Generate unique manifest ID
-const generateManifestId = () => {
-  const timestamp = new Date().getTime();
-  const random = Math.floor(Math.random() * 1000);
-  return `MSG${timestamp}${random}`;
+const generateManifestId = async () => {
+  try {
+    const manifestCount = await Manifest.countDocuments({});
+    const paddedCount = String(manifestCount + 1).padStart(6, '0');
+    return `MTTE${paddedCount}`;
+
+  } catch (error) {
+    console.error('Error generating manifest ID:', error);
+  }
 };
 
 // Generate pickup AWB
@@ -173,7 +178,7 @@ export const updateManifestStatus = async (req, res) => {
     const { manifestId } = req.params;
     const { status, pickupDate, pickupTime } = req.body;
 
-    const validStatuses = ['open', 'pickup_requested', 'closed'];
+    const validStatuses = ['open', 'pickup_requested', 'closed', 'picked_up'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -195,7 +200,7 @@ export const updateManifestStatus = async (req, res) => {
     }
 
     // If status is closed, update all linked orders to dispatched
-    if (status === 'closed') {
+    if ( status === 'picked_up') {
       await Order.updateMany(
         { manifest: manifestId },
         { manifestStatus: 'dispatched', orderStatus: 'Shipped' }
@@ -240,4 +245,23 @@ export const getPackedOrdersForManifest = async (req, res) => {
       message: 'Failed to fetch packed orders'
     });
   }
+};
+
+export const getAllManifests = async (req, res) => {
+  try {
+    const manifests = await Manifest.find()
+      .populate('orders', 'invoiceNo firstName lastName weight')
+      .populate('user', 'fullname email')
+      .sort({ createdAt: -1 });
+    res.status(200).json({
+      success: true,
+      data: manifests
+    });
+  } catch (error) {
+    console.error('Error fetching all manifests:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch manifests'
+    });
+  } 
 };

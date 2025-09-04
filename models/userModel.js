@@ -5,8 +5,9 @@ const userSchema = new mongoose.Schema({
     fullname: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: 6 },
-    confirmPassword: { type: String, required: true, minlength: 6 },
+    confirmPassword: { type: String, minlength: 6 },
     mobile: { type: String, trim: true },
+    kycStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     // Multiple pickup addresses as an array of objects
     pickupAddresses: [
         {
@@ -16,7 +17,9 @@ const userSchema = new mongoose.Schema({
             city: { type: String, required: true },
             state: { type: String, required: true },
             postalCode: { type: String, required: true },
-            country: { type: String, required: true }
+            country: { type: String, required: true },
+            contactPerson: { type: String },
+            contactNumber: { type: String }
         }
     ],
 
@@ -32,19 +35,20 @@ const userSchema = new mongoose.Schema({
     gstProof: { type: String },
     iecProof: { type: String },
 
+    discountRate: { type: Number, default: 0 }, // in percentage
     // Approval flow
     isApproved: { type: Boolean, default: false },
 }, { timestamps: true });
 
-// ✅ Pre-save hook
-userSchema.pre('save', function (next) {
-    if (this.password !== this.confirmPassword) {
-        return next(new Error('Password and Confirm Password do not match'));
-    }
-    this.password = bcrypt.hashSync(this.password, 10);
-    this.confirmPassword = undefined;
-    next();
-});
+// // ✅ Pre-save hook
+// userSchema.pre('save', function (next) {
+//     if (this.password !== this.confirmPassword) {
+//         return next(new Error('Password and Confirm Password do not match'));
+//     }
+//     this.password = bcrypt.hashSync(this.password, 10);
+//     this.confirmPassword = undefined;
+//     next();
+// });
 
 // Method to check if the entered password matches the stored password
 userSchema.methods.isPasswordValid = function (password) {

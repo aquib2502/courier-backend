@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails } from '../controllers/userController.js';
+import { registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress } from '../controllers/userController.js';
 import upload from '../middlewares/upload.js';
 const router = express.Router();
 
@@ -18,6 +18,8 @@ router.post(
 
 
 router.post('/loginUser', loginUser);
+
+router.get('/pickupadresses/:userId', getPickupAddress); // Route to fetch pickup addresses by userId
 
 // Route to fetch orders by userId
 router.get('/orders/:user', getOrdersByUserId);

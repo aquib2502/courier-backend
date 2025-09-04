@@ -4,46 +4,46 @@ import Order from "../models/orderModel.js";
 
 
   const registerUser = async (req, res) => {
-    try {
-      const { fullname, email, password, confirmPassword, aadharNumber, panNumber, gstNumber, iecNumber } = req.body;
+  try {
+    const { fullname, email, password, confirmPassword, aadharNumber, panNumber, gstNumber, iecNumber } = req.body;
 
-      if (!fullname || !email || !password || !confirmPassword || !aadharNumber || !panNumber || !gstNumber || !iecNumber) {
-        return res.status(400).json({ message: "All fields are required" });
-      }
-
-      if (password !== confirmPassword) {
-        return res.status(400).json({ message: "Passwords do not match" });
-      }
-
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ message: "Email already in use" });
-      }
-
-      // File uploads
-      const user = new User({
-        fullname,
-        email,
-        password,
-        confirmPassword,
-        aadharNumber,
-        panNumber,
-        gstNumber,
-        iecNumber,
-        aadharProof: req.files?.aadharProof?.[0]?.path,
-        panProof: req.files?.panProof?.[0]?.path,
-        gstProof: req.files?.gstProof?.[0]?.path,
-        iecProof: req.files?.iecProof?.[0]?.path,
-      });
-
-      await user.save();
-      res.status(201).json({ message: "Registration successful. Pending admin approval." });
-
-    } catch (err) {
-      console.error("Error in registerUser:", err);
-      res.status(500).json({ message: "Server error" });
+    if (!fullname || !email || !password || !confirmPassword || !aadharNumber || !panNumber || !gstNumber || !iecNumber) {
+      return res.status(400).json({ message: "All fields are required" });
     }
-  };
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match" });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email already in use" });
+    }
+
+    const user = new User({
+      fullname,
+      email,
+      password,
+      confirmPassword,
+      aadharNumber,
+      panNumber,
+      gstNumber,
+      iecNumber,
+      aadharProof: req.files?.aadharProof?.[0]?.filename || null,
+      panProof: req.files?.panProof?.[0]?.filename || null,
+      gstProof: req.files?.gstProof?.[0]?.filename || null,
+      iecProof: req.files?.iecProof?.[0]?.filename || null,
+    });
+
+    await user.save();
+    res.status(201).json({ message: "Registration successful. Pending admin approval." });
+
+  } catch (err) {
+    console.error("Error in registerUser:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 
 
 
@@ -149,5 +149,21 @@ const loginUser = async (req, res) => {
     } 
   };
 
+const getPickupAddress = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+    const user = await User.findById(userId).select("pickupAddresses");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ message: "Pickup address fetched successfully", pickupAddress: user.pickupAddresses });
+  } catch (error) {
+    console.error("Error fetching pickup address:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
-export {registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails};
+export {registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress};
