@@ -8,6 +8,8 @@ import manifestRoutes from './routes/manifestRoutes.js'; // Import the manifest 
 import adminRoutes from './routes/adminRoutes.js'; // Import the admin routes
 import path from 'path'
 import { fileURLToPath } from 'url';
+import roleRoutes from './routes/roleRoutes.js'
+import rateRoutes from './routes/rateRoutes.js'
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config();
@@ -34,6 +36,9 @@ app.use('/api/manifests', manifestRoutes); // Use the manifest routes
 
 app.use('/api/admin', adminRoutes)
 
+app.use('/api/roles',roleRoutes )
+
+app.use('/api/rates',rateRoutes )
 
 const PORT =process.env.PORT
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
