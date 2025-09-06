@@ -15,6 +15,8 @@ import Order from "../models/orderModel.js";
       return res.status(400).json({ message: "Passwords do not match" });
     }
 
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "Email already in use" });
@@ -23,7 +25,7 @@ import Order from "../models/orderModel.js";
     const user = new User({
       fullname,
       email,
-      password,
+      password: hashedPassword,
       confirmPassword,
       aadharNumber,
       panNumber,
@@ -57,9 +59,9 @@ const loginUser = async (req, res) => {
             return res.status(400).json({ message: 'User not found. Please register.' });
         }
 
-        const isValidPassword = await user.isPasswordValid(password);
-        if (!isValidPassword) {
-            return res.status(400).json({ message: 'Invalid password.' });
+        const comparePassword = await bcrypt.compare(password, user.password);
+        if (!comparePassword) {
+            return res.status(400).json({ message: 'Invalid credentials' });
         }
 
         // Generate JWT token with the secret from the environment variable
