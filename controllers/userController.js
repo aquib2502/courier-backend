@@ -27,7 +27,6 @@ import bcrypt from 'bcryptjs';
       fullname,
       email,
       password: hashedPassword,
-      confirmPassword,
       aadharNumber,
       panNumber,
       gstNumber,
@@ -37,6 +36,8 @@ import bcrypt from 'bcryptjs';
       gstProof: req.files?.gstProof?.[0]?.filename || null,
       iecProof: req.files?.iecProof?.[0]?.filename || null,
     });
+
+    
 
     await user.save();
     res.status(201).json({ message: "Registration successful. Pending admin approval." });
