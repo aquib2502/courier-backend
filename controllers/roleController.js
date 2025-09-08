@@ -80,10 +80,13 @@ import Role from "../models/roleModel.js";
 
 
 
- const seedRoles = async (req, res) => {
+const seedRoles = async (req, res) => {
   try {
-    await Role.deleteMany(); // Clear old data
+    // Clear old roles
+    await Role.deleteMany();
+    console.log('Old roles cleared.');
 
+    // Base permissions
     const basePermissions = [
       { tab: 'dashboard', label: 'Dashboard', icon: 'TrendingUp', order: 1, enabled: true },
       { tab: 'users', label: 'User Management', icon: 'Users', order: 2, enabled: true },
@@ -96,31 +99,44 @@ import Role from "../models/roleModel.js";
       { tab: 'discounts', label: 'Discounts', icon: 'Percent', order: 9, enabled: true }
     ];
 
+    // Define roles
     const roles = [
       {
         name: 'SuperAdmin',
         description: 'Full system access',
-        permissions: basePermissions // SuperAdmin has everything enabled
+        permissions: basePermissions
       },
       {
         name: 'Operator',
         description: 'Managed by SuperAdmin',
-        permissions: basePermissions.map(p => ({ ...p, enabled: false })) // all disabled by default
+        permissions: basePermissions.map(p => ({ ...p, enabled: false }))
       },
       {
         name: 'PickUp',
         description: 'Managed by SuperAdmin',
-        permissions: basePermissions.map(p => ({ ...p, enabled: false })) // all disabled by default
+        permissions: basePermissions.map(p => ({ ...p, enabled: false }))
+      },
+      {
+        name: 'Finance',
+        description: 'Managed by SuperAdmin',
+        permissions: basePermissions.map(p => ({ ...p, enabled: false }))
       }
     ];
 
+    // Log each role before seeding
+    roles.forEach(role => console.log(`Seeding role: ${role.name}`));
+
+    // Insert roles into DB
     await Role.insertMany(roles);
+
+    console.log('All roles seeded successfully.');
     res.status(201).json({ message: 'Roles seeded successfully.' });
   } catch (error) {
     console.error('Error seeding roles:', error);
     res.status(500).json({ message: 'Internal server error.' });
   }
 };
+
 
 
 export { getMenuByRole, seedRoles, togglePermission };

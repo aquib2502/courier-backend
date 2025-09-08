@@ -27,6 +27,11 @@ const loginAdmin = async (req, res) => {
                 role: "PickUp",
                 username: process.env.PICKUP_USERNAME,
                 password: process.env.PICKUP_PASSWORD
+            },
+            {
+                role: "Finance",
+                username: process.env.FINANCE_USERNAME,
+                password: process.env.FINANCE_PASSWORD
             }
         ];
 
