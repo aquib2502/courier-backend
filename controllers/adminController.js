@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 import User from '../models/userModel.js';
 import Order from '../models/orderModel.js';
+import Clubbing from '../models/clubbingModel.js';
 
 
 dotenv.config();
@@ -130,6 +131,24 @@ const updateUserDetails = async (req, res) => {
     } 
   };
 
+  const getClubbingDetails = async (req, res) => {
+    try {
+      const clubbingDetails = await Clubbing.find()
+        .populate('userIds', 'fullname email') // Populate user details
+        .populate('clubbedOrders'); // Populate order details
+      res.status(200).json({
+        success: true,
+        message: 'Clubbing details fetched successfully',
+        data: clubbingDetails
+      });
+    } catch (error) {
+      console.error('Error fetching clubbing details:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Something went wrong, please try again later.'
+      });
+    }
+  };
 
 
 
@@ -140,5 +159,6 @@ const updateUserDetails = async (req, res) => {
 export {loginAdmin,
     getUsersWithOrders,
     editUserKYCStatus,
-    updateUserDetails
+    updateUserDetails,
+    getClubbingDetails
 }

@@ -15,7 +15,7 @@ const generateManifestId = async () => {
 };
 
 // Generate pickup AWB
-const generatePickupAWB = () => {
+const generatePickupAWB = async () => {
   return "AWB" + Math.random().toString(36).substr(2, 9).toUpperCase();
 };
 
@@ -70,8 +70,8 @@ export const createManifest = async (req, res) => {
     }, 0);
 
     // Generate manifest ID and AWB
-    const manifestId = generateManifestId();
-    const pickupAWB = generatePickupAWB();
+    const manifestId = await generateManifestId();
+    const pickupAWB = await generatePickupAWB();
 
     // Create new manifest
     const newManifest = new Manifest({

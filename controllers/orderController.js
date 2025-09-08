@@ -1,5 +1,6 @@
 import Order from '../models/orderModel.js'; // Import the Order model
 import User from '../models/userModel.js';
+import Clubbing from '../models/clubbingModel.js';
 
 // Controller function to handle order creation
  const createOrder = async (req, res) => {
@@ -136,5 +137,56 @@ const getAllOrders = async (req, res) => {
   }
 };
 
+const clubOrders = async (req, res) => {
+  try {
+    const { userIds, orderIds, clubName } = req.body;
 
-export { createOrder, updateOrderStatus, getTotalOrderCount, getAllOrders };
+    // Validate input
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'userIds must be a non-empty array' });
+    }
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'orderIds must be a non-empty array' });
+    }
+
+    // Fetch users with fullname and email
+    const users = await User.find({ _id: { $in: userIds } }, 'fullname email');
+    if (users.length !== userIds.length) {
+      return res.status(404).json({ success: false, message: 'One or more users not found' });
+    }
+
+    // Verify orders exist
+    const orders = await Order.find({ _id: { $in: orderIds } });
+    if (orders.length !== orderIds.length) {
+      return res.status(404).json({ success: false, message: 'One or more orders not found' });
+    }
+
+    // Create clubbing entry
+    const clubbing = new Clubbing({
+      clubName,
+      userIds, // keep IDs for reference
+      usernames: users.map(u => u.fullname).join(', '), // Concatenate names
+      useremails: users.map(u => u.email).join(', '), // Concatenate emails
+      clubbedOrders: orderIds,
+    });
+
+    await clubbing.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Orders clubbed successfully',
+      data: {
+        id: clubbing._id,
+        users, // Array of user objects with fullname and email
+        clubbedOrders: clubbing.clubbedOrders,
+        clubbedAt: clubbing.clubbedAt
+      }
+    });
+  } catch (error) {
+    console.error('Error clubbing orders:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to club orders' });
+  }
+};
+
+
+export { createOrder, updateOrderStatus, getTotalOrderCount, getAllOrders, clubOrders };

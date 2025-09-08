@@ -1,5 +1,5 @@
 import express from 'express';
-import { createOrder, updateOrderStatus, getTotalOrderCount, getAllOrders } from '../controllers/orderController.js'; // Import the createOrder function
+import { createOrder, updateOrderStatus, getTotalOrderCount, getAllOrders, clubOrders } from '../controllers/orderController.js'; // Import the createOrder function
 
 const router = express.Router();
 
@@ -12,6 +12,8 @@ router.put('/:orderId/status', updateOrderStatus)
 router.get('/count/total', getTotalOrderCount);
 
 router.get('/total', getAllOrders);
+
+router.post('/club', clubOrders)
 
 export default router;
     
