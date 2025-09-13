@@ -174,20 +174,19 @@ export const getManifestById = async (req, res) => {
 
 export const updateManifestStatus = async (req, res) => {
   try {
-    const { manifestId } = req.params; // e.g., "MTTE000001"
+    const { manifestId } = req.params;
     const { status, pickupDate, pickupTime } = req.body;
 
     const validStatuses = ['open', 'pickup_requested', 'closed', 'picked_up'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid status',
+        message: 'Invalid status'
       });
     }
 
-    // ✅ Find by manifestId, not by _id
-    const updatedManifest = await Manifest.findOneAndUpdate(
-      { manifestId }, // use manifestId as search field
+    const updatedManifest = await Manifest.findByIdAndUpdate(
+      manifestId,
       { status, pickupDate, pickupTime, updatedAt: new Date() },
       { new: true }
     ).populate('orders');
@@ -195,14 +194,14 @@ export const updateManifestStatus = async (req, res) => {
     if (!updatedManifest) {
       return res.status(404).json({
         success: false,
-        message: 'Manifest not found',
+        message: 'Manifest not found'
       });
     }
 
-    // If status is "picked_up", update all linked orders
-    if (status === 'picked_up') {
+    // If status is closed, update all linked orders to dispatched
+    if ( status === 'picked_up') {
       await Order.updateMany(
-        { manifest: updatedManifest._id }, // still use real ObjectId for order linkage
+        { manifest: manifestId },
         { manifestStatus: 'dispatched', orderStatus: 'Shipped' }
       );
     }
@@ -210,13 +209,14 @@ export const updateManifestStatus = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Manifest status updated successfully',
-      data: updatedManifest,
+      data: updatedManifest
     });
+
   } catch (error) {
     console.error('Error updating manifest status:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update manifest status',
+      message: 'Failed to update manifest status'
     });
   }
 };
