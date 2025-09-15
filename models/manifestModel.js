@@ -22,7 +22,8 @@ const manifestSchema = new mongoose.Schema({
             postalCode: { type: String, required: true },
             country: { type: String, required: true },
             contactPerson: { type: String },
-            contactNumber: { type: String }
+            contactNumber: { type: String },
+           
         }
     ],
   orders: [{

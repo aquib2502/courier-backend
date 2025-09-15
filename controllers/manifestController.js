@@ -74,18 +74,18 @@ export const createManifest = async (req, res) => {
     const pickupAWB = await generatePickupAWB();
 
     // Create new manifest
-    const newManifest = new Manifest({
-      manifestId,
-      user: userId,
-      pickupAddress,
-      orders: orderIds,
-      courierPartner,
-      totalOrders: orders.length,
-      totalWeight,
-      totalValue,
-      pickupAWB,
-      estimatedPickup: new Date(Date.now() + 24 * 60 * 60 * 1000) // Tomorrow
-    });
+  const newManifest = new Manifest({
+  manifestId,
+  user: userId,
+  pickupAddresses: [pickupAddress], // ✅ wrap in an array
+  orders: orderIds,
+  courierPartner,
+  totalOrders: orders.length,
+  totalWeight,
+  totalValue,
+  pickupAWB,
+  estimatedPickup: new Date(Date.now() + 24 * 60 * 60 * 1000)
+});
 
     await newManifest.save();
 
