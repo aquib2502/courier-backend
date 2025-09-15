@@ -5,6 +5,7 @@ import User from "../models/userModel.js";
 import Order from "../models/orderModel.js";
 import Clubbing from "../models/clubbingModel.js";
 import Manifest from "../models/manifestModel.js";
+import Note from "../models/noteModel.js";
 
 dotenv.config();
 
@@ -206,11 +207,28 @@ const updateManifestStatus = async (req, res) => {
   }
 };
 
+const addNote = async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    if (!title || !content) {
+      return res.status(400).json({ message: "Title and content are required" });
+    }
+    const newNote = new Note({ title, content });
+    await newNote.save();
+    res.status(201).json({ message: "Note added successfully", note: newNote });
+
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+    console.log(error);
+  }
+}
+
 export {
   loginAdmin,
   getUsersWithOrders,
   editUserKYCStatus,
   updateUserDetails,
   getClubbingDetails,
-  updateManifestStatus
+  updateManifestStatus,
+  addNote
 };
