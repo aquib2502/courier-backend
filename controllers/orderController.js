@@ -121,21 +121,23 @@ const generateSerialNumber = async () => {
 
 const getAllOrders = async (req, res) => {
   try {
-    const orders = await Order.find().populate('user', 'firstname lastname email mobile'); // Populate user details
+    const orders = await Order.find()
+      .populate('user', 'fullname mobile')          // Populate user details
+      .populate('manifest', 'manifestId status');   // Populate manifest details
+
     res.status(200).json({
       success: true,
       data: orders
     });
-
   } catch (error) {
-     res.status(500).json({
+    console.error('Error retrieving orders:', error);
+    res.status(500).json({
       success: false,
       message: 'Failed to retrieve orders'
-    }, error);
-    console.error('Error retrieving orders:', error);
-
+    });
   }
 };
+
 
 const clubOrders = async (req, res) => {
   try {

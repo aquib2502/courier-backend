@@ -64,7 +64,8 @@ const orderSchema = new Schema({
       'Shipped',
       'Delivered',
       'Cancelled',
-      'Refunded'
+      'Refunded',
+      'disputed'
     ],
     default: 'Drafts'
   },
@@ -72,7 +73,7 @@ const orderSchema = new Schema({
   // Manifest-related fields
   manifestStatus: {
     type: String,
-    enum: ['open', 'manifested', 'dispatched'],
+    enum: ['open', 'manifested', 'dispatched', 'disputed'],
     default: 'open'
   },
   
@@ -88,7 +89,9 @@ const orderSchema = new Schema({
     type: Date,
     default: null
   },
-});
+}
+, { timestamps: true }
+);
 
 const Order = mongoose.model('Order', orderSchema);
 

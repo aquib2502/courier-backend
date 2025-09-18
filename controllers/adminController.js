@@ -6,6 +6,8 @@ import Order from "../models/orderModel.js";
 import Clubbing from "../models/clubbingModel.js";
 import Manifest from "../models/manifestModel.js";
 import Note from "../models/noteModel.js";
+import { raiseDispute } from "./notificationController.js";
+import Dispute from "../models/disputeModel.js";
 
 dotenv.config();
 
@@ -222,6 +224,62 @@ const addNote = async (req, res) => {
     console.log(error);
   }
 }
+
+export const adminRaiseDispute = async (req, res) => {
+  try {
+    const { orderId, manifestId, type, description, clientId } = req.body;
+
+    const notification = await raiseDispute({
+      orderId,
+      manifestId,
+      type,
+      description,
+      clientId,
+    });
+    
+    const dispute = await Dispute({
+      orderId,
+      manifestId,
+      type,
+      description,
+      clientId,
+    });
+
+    await dispute.save();
+
+    // Find and update the order
+    const order = await Order.findOne({ _id: orderId });
+    if (order) {
+      order.orderStatus = "disputed";
+      order.manifestStatus = "disputed";
+      await order.save();
+    } else {
+      console.log("Order not found!");
+    }
+    
+    // Find and update the manifest
+    const manifest = await Manifest.findOne({ _id: manifestId });
+    if (manifest) {
+      manifest.status = "disputed";
+      await manifest.save();
+    } else {
+      console.log("Manifest not found!");
+    }
+
+
+    res.status(201).json({
+      success: true,
+      message: "Dispute raised and client notified",
+      dispute,
+    });
+  } catch (error) {
+    console.error("Error in adminRaiseDispute:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to raise dispute",
+    });
+  }
+};
 
 export {
   loginAdmin,

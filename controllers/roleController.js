@@ -97,7 +97,8 @@ const seedRoles = async (req, res) => {
       { tab: 'wallet', label: 'Wallet Credits', icon: 'Wallet', order: 7, enabled: true },
       { tab: 'rbfm', label: 'RBFM', icon: 'Plus', order: 8, enabled: true },
       { tab: 'discounts', label: 'Discounts', icon: 'Percent', order: 9, enabled: true },
-      {tab: 'clubbing', label: 'Order Clubbing', icon: 'SquaresExclude', order: 10, enabled: true }
+      {tab: 'clubbing', label: 'Order Clubbing', icon: 'SquaresExclude', order: 10, enabled: true },
+      {tab: 'dispute', label: 'Dispute Section', icon: 'ShieldAlert', order: 10, enabled: true }
     ];
 
     // Define roles

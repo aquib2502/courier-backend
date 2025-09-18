@@ -36,7 +36,7 @@ const manifestSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'pickup_requested', 'closed', 'picked_up'],
+    enum: ['open', 'pickup_requested', 'closed', 'picked_up', 'disputed'],
     default: 'open'
   },
   totalOrders: {
