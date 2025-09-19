@@ -11,6 +11,7 @@ const rateSchema = new mongoose.Schema(
       required: [true, 'Destination country is required'],
       trim: true,
     },
+    dest_country_code: { type: String, required: false }, // "USA"
     package: {
       type: String,
       required: [true, 'Package type is required'],

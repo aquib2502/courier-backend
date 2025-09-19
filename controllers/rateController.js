@@ -1,65 +1,67 @@
 import Rate from '../models/rateModel.js';
+import countries from 'world-countries';
+
 
 
 // Seed full initial data
 export const seedRates = async (req, res) => {
   try {
-    const existingRates = await Rate.find();
-    if (existingRates.length > 0) {
-      return res.status(400).json({ message: 'Rates already seeded!' });
-    }
+    await Rate.deleteMany();
+    console.log('Existing rates cleared');
 
-    const seedData = [
-      // USA rates
-      { weight: 0.050, dest_country: "United States (USA)", package: "Cheaper", rate: 404 },
-      { weight: 0.100, dest_country: "United States (USA)", package: "Cheaper", rate: 450 },
-      { weight: 0.150, dest_country: "United States (USA)", package: "Cheaper", rate: 500 },
-      { weight: 0.200, dest_country: "United States (USA)", package: "Cheaper", rate: 550 },
-      { weight: 0.250, dest_country: "United States (USA)", package: "Cheaper", rate: 600 },
-      { weight: 0.300, dest_country: "United States (USA)", package: "Cheaper", rate: 650 },
-      { weight: 0.350, dest_country: "United States (USA)", package: "Cheaper", rate: 700 },
-      { weight: 0.400, dest_country: "United States (USA)", package: "Cheaper", rate: 750 },
-      { weight: 0.426, dest_country: "United States (USA)", package: "Cheaper", rate: 800 },
-      { weight: 0.756, dest_country: "United States (USA)", package: "Cheaper", rate: 900 },
-      { weight: 1.001, dest_country: "United States (USA)", package: "Cheaper", rate: 1200 },
-      { weight: 1.251, dest_country: "United States (USA)", package: "Cheaper", rate: 1400 },
-      { weight: 1.501, dest_country: "United States (USA)", package: "Cheaper", rate: 1600 },
-      { weight: 1.751, dest_country: "United States (USA)", package: "Cheaper", rate: 1800 },
+   const seedData = [
+  // USA rates
+  { weight: 0.050, dest_country: "United States (USA)", country_code: "USA", package: "Cheaper", rate: 404 },
+  { weight: 0.100, dest_country: "United States (USA)", country_code: "USA", package: "Cheaper", rate: 450 },
+  { weight: 0.150, dest_country: "United States (USA)", country_code: "USA", package: "Cheaper", rate: 500 },
+  { weight: 0.200, dest_country: "United States (USA)", country_code: "USA", package: "Cheaper", rate: 550 },
+  { weight: 0.250, dest_country: "United States (USA)", country_code: "USA", package: "Cheaper", rate: 600 },
+  { weight: 0.300, dest_country: "United States (USA)", country_code: "USA", package: "Cheaper", rate: 650 },
+  { weight: 0.350, dest_country: "United States (USA)", country_code: "USA", package: "Cheaper", rate: 700 },
+  { weight: 0.400, dest_country: "United States (USA)", country_code: "USA", package: "Cheaper", rate: 750 },
+  { weight: 0.426, dest_country: "United States (USA)", country_code: "USA", package: "Cheaper", rate: 800 },
+  { weight: 0.756, dest_country: "United States (USA)", country_code: "USA", package: "Cheaper", rate: 900 },
+  { weight: 1.001, dest_country: "United States (USA)", country_code: "USA", package: "Cheaper", rate: 1200 },
+  { weight: 1.251, dest_country: "United States (USA)", country_code: "USA", package: "Cheaper", rate: 1400 },
+  { weight: 1.501, dest_country: "United States (USA)", country_code: "USA", package: "Cheaper", rate: 1600 },
+  { weight: 1.751, dest_country: "United States (USA)", country_code: "USA", package: "Cheaper", rate: 1800 },
 
-      // Remote USA
-      { weight: 0.050, dest_country: "United States (Remote)", package: "Cheaper", rate: 500 },
-      { weight: 0.100, dest_country: "United States (Remote)", package: "Cheaper", rate: 580 },
-      { weight: 0.150, dest_country: "United States (Remote)", package: "Cheaper", rate: 650 },
+  // Remote USA (still USA, but remote region)
+  { weight: 0.050, dest_country: "United States (Remote)", country_code: "USA", package: "Cheaper", rate: 500 },
+  { weight: 0.100, dest_country: "United States (Remote)", country_code: "USA", package: "Cheaper", rate: 580 },
+  { weight: 0.150, dest_country: "United States (Remote)", country_code: "USA", package: "Cheaper", rate: 650 },
 
-      // UK rates
-      { weight: 0.050, dest_country: "United Kingdom (UK)", package: "Premium", rate: 800 },
-      { weight: 0.100, dest_country: "United Kingdom (UK)", package: "Premium", rate: 900 },
-      { weight: 0.150, dest_country: "United Kingdom (UK)", package: "Premium", rate: 1000 },
-      { weight: 0.200, dest_country: "United Kingdom (UK)", package: "Premium", rate: 1100 },
-      { weight: 0.250, dest_country: "United Kingdom (UK)", package: "Premium", rate: 1200 },
-      { weight: 0.300, dest_country: "United Kingdom (UK)", package: "Premium", rate: 1300 },
-      { weight: 0.350, dest_country: "United Kingdom (UK)", package: "Premium", rate: 1400 },
-      { weight: 0.400, dest_country: "United Kingdom (UK)", package: "Premium", rate: 1500 },
-      { weight: 0.450, dest_country: "United Kingdom (UK)", package: "Premium", rate: 1600 },
-      { weight: 0.500, dest_country: "United Kingdom (UK)", package: "Premium", rate: 1700 },
-      { weight: 0.600, dest_country: "United Kingdom (UK)", package: "Premium", rate: 1900 },
-      { weight: 0.700, dest_country: "United Kingdom (UK)", package: "Premium", rate: 2100 },
-      { weight: 0.800, dest_country: "United Kingdom (UK)", package: "Premium", rate: 2300 },
-      { weight: 0.900, dest_country: "United Kingdom (UK)", package: "Premium", rate: 2500 },
-      { weight: 1.000, dest_country: "United Kingdom (UK)", package: "Premium", rate: 2700 },
+  // UK rates
+  { weight: 0.050, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 800 },
+  { weight: 0.100, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 900 },
+  { weight: 0.150, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 1000 },
+  { weight: 0.200, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 1100 },
+  { weight: 0.250, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 1200 },
+  { weight: 0.300, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 1300 },
+  { weight: 0.350, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 1400 },
+  { weight: 0.400, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 1500 },
+  { weight: 0.450, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 1600 },
+  { weight: 0.500, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 1700 },
+  { weight: 0.600, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 1900 },
+  { weight: 0.700, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 2100 },
+  { weight: 0.800, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 2300 },
+  { weight: 0.900, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 2500 },
+  { weight: 1.000, dest_country: "United Kingdom (UK)", country_code: "GBR", package: "Premium", rate: 2700 },
 
-      // Australia rates
-      { weight: 0.500, dest_country: "Australia", package: "UPS", rate: 2200 },
-      { weight: 0.500, dest_country: "Australia", package: "DHL", rate: 2400 },
-      { weight: 1.000, dest_country: "Australia", package: "UPS", rate: 3200 },
-      { weight: 1.000, dest_country: "Australia", package: "DHL", rate: 3400 },
+  // Australia rates
+  { weight: 0.500, dest_country: "Australia", country_code: "AUS", package: "UPS", rate: 2200 },
+  { weight: 0.500, dest_country: "Australia", country_code: "AUS", package: "DHL", rate: 2400 },
+  { weight: 1.000, dest_country: "Australia", country_code: "AUS", package: "UPS", rate: 3200 },
+  { weight: 1.000, dest_country: "Australia", country_code: "AUS", package: "DHL", rate: 3400 },
 
-      // Rest of World
-      { weight: 0.500, dest_country: "Rest of World", package: "UPS", rate: 2000 },
-      { weight: 0.500, dest_country: "Rest of World", package: "DHL", rate: 2100 },
-      { weight: 1.000, dest_country: "Rest of World", package: "UPS", rate: 3000 },
-      { weight: 1.000, dest_country: "Rest of World", package: "DHL", rate: 3100 },
-    ];
+  // Rest of World (no specific country — using "ROW" placeholder code)
+  { weight: 0.500, dest_country: "Rest of World", country_code: "ROW", package: "UPS", rate: 2000 },
+  { weight: 0.500, dest_country: "Rest of World", country_code: "ROW", package: "DHL", rate: 2100 },
+  { weight: 1.000, dest_country: "Rest of World", country_code: "ROW", package: "UPS", rate: 3000 },
+  { weight: 1.000, dest_country: "Rest of World", country_code: "ROW", package: "DHL", rate: 3100 },
+];
+
+
 
     await Rate.insertMany(seedData);
 
@@ -122,3 +124,26 @@ export const deleteRate = async (req, res) => {
     res.status(500).json({ message: 'Error deleting rate', error: error.message });
   }
 };
+
+// controllers/countryController.js
+
+export const getAllCountries = async (req, res) => {
+  try {
+    // Format countries for dropdown: { name: "India", code: "IND" }
+    const formattedCountries = countries.map((country) => ({
+      name: country.name.common,
+      code: country.cca3, // Alpha-3 code like IND, USA, GBR
+    }));
+
+    // Sort alphabetically by name
+    formattedCountries.sort((a, b) => a.name.localeCompare(b.name));
+
+    res.status(200).json(formattedCountries);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching countries",
+      error: error.message,
+    });
+  }
+};
+
