@@ -1,6 +1,7 @@
 import express from 'express';
-import { registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress } from '../controllers/userController.js';
+import { registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress , getOrderCountForUser} from '../controllers/userController.js';
 import upload from '../middlewares/upload.js';
+import authMiddleware from '../middlewares/authMiddleware.js';
 const router = express.Router();
 
 // Upload multiple files
@@ -18,11 +19,13 @@ router.post(
 
 
 router.post('/loginUser', loginUser);
+router.get('/orderCount', authMiddleware, getOrderCountForUser )
 
 router.get('/pickupadresses/:userId', getPickupAddress); // Route to fetch pickup addresses by userId
 
 // Route to fetch orders by userId
 router.get('/orders/:user', getOrdersByUserId);
+
 
 router.get('/getuser/:userId', getUserDetails); // Route to fetch user details by userId
 

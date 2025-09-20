@@ -2,7 +2,7 @@ import User from "../models/userModel.js";
 import jwt from 'jsonwebtoken'
 import Order from "../models/orderModel.js";
 import bcrypt from 'bcryptjs';
-
+import mongoose from "mongoose";
 
   const registerUser = async (req, res) => {
   try {
@@ -117,6 +117,62 @@ const loginUser = async (req, res) => {
     }
   };
 
+const getOrderCountForUser = async (req, res) => {
+  try {
+    // Get user ID from req.user (populated by authMiddleware)
+    const userId = req.user._id || req.user.userId;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: "Invalid user ID" });
+    }
+
+    // Aggregate orders to count by status
+    const orderCounts = await Order.aggregate([
+      { $match: { user: new mongoose.Types.ObjectId(userId) } },
+      {
+        $group: {
+          _id: "$orderStatus",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // All possible statuses
+    const statuses = [
+      'Drafts',
+      'Ready',
+      'Packed',
+      'Manifested',
+      'Shipped',
+      'Delivered',
+      'Cancelled',
+      'Refunded',
+      'disputed'
+    ];
+
+    // Build response with 0 for missing statuses
+    const formattedCounts = {};
+    statuses.forEach(status => {
+      const found = orderCounts.find(item => item._id === status);
+      formattedCounts[status] = found ? found.count : 0;
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Order counts fetched successfully",
+      data: formattedCounts
+    });
+  } catch (error) {
+    console.error("Error fetching order counts:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
   const   getUserDetails =async (req,res) =>{
     try{
         const {userId} = req.params;
@@ -170,4 +226,4 @@ const getPickupAddress = async (req, res) => {
   }
 };
 
-export {registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress};
+export {registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress, getOrderCountForUser};
