@@ -22,11 +22,19 @@ const DisputeSchema = new mongoose.Schema({
     trim: true
   },
 
-  orderId: {
+  clientId: {
+    type:mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  
+orderIds: [
+  {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Order',
-    required: false // Required only for order-level disputes
-  },
+  }
+],
+
 
   manifestId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -43,7 +51,6 @@ const DisputeSchema = new mongoose.Schema({
 
   clientResponse: {
     type: String,
-    enum: ['pending', 'accepted', 'rejected'],
     default: 'pending'
   },
 

@@ -70,6 +70,15 @@ const orderSchema = new Schema({
     default: 'Drafts'
   },
 
+  
+    // Link disputes to this order
+    disputes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Dispute",
+      },
+    ],
+
   // Manifest-related fields
   manifestStatus: {
     type: String,

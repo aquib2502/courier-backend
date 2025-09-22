@@ -225,51 +225,79 @@ const addNote = async (req, res) => {
   }
 }
 
+const getNote = async (req, res) => {
+  try {
+    // Fetch the most recent note
+    const note = await Note.findOne().sort({ createdAt: -1 }); // descending order
+
+    if (!note) {
+      return res.status(404).json({ message: "No notes found" });
+    }
+
+    res.status(200).json({
+      message: "Most recent note fetched successfully",
+      note
+    });
+  } catch (error) {
+    console.error("Error fetching note:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
 export const adminRaiseDispute = async (req, res) => {
   try {
-    const { orderId, manifestId, type, description, clientId } = req.body;
+    const { orderIds, manifestId, type, description, clientId } = req.body;
 
-    const notification = await raiseDispute({
-      orderId,
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one orderId must be provided",
+      });
+    }
+
+    // Raise notification (your existing logic)
+    await raiseDispute({
+      orderIds,
       manifestId,
       type,
       description,
       clientId,
     });
-    
-    const dispute = await Dispute({
-      orderId,
+
+    // Create the dispute document
+    const dispute = new Dispute({
+      orderIds,      // array of orders
       manifestId,
       type,
       description,
       clientId,
+      clientResponse: "pending", // default enum value
+      status: "open",            // default enum value
     });
 
     await dispute.save();
 
-    // Find and update the order
-    const order = await Order.findOne({ _id: orderId });
-    if (order) {
-      order.orderStatus = "disputed";
-      order.manifestStatus = "disputed";
-      await order.save();
-    } else {
-      console.log("Order not found!");
-    }
-    
-    // Find and update the manifest
-    const manifest = await Manifest.findOne({ _id: manifestId });
-    if (manifest) {
-      manifest.status = "disputed";
-      await manifest.save();
-    } else {
-      console.log("Manifest not found!");
-    }
+    // Update all related orders to "disputed"
+    await Order.updateMany(
+      { _id: { $in: orderIds } },
+      { $set: { orderStatus: "disputed", manifestStatus: "disputed" } }
+    );
 
+    // Update the manifest if provided
+    if (manifestId) {
+      const manifest = await Manifest.findById(manifestId);
+      if (manifest) {
+        manifest.status = "disputed";
+        await manifest.save();
+      } else {
+        console.log("Manifest not found!");
+      }
+    }
 
     res.status(201).json({
       success: true,
-      message: "Dispute raised and client notified",
+      message: "Dispute raised for all orders and client notified",
       dispute,
     });
   } catch (error) {
@@ -277,9 +305,11 @@ export const adminRaiseDispute = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to raise dispute",
+      error: error.message,
     });
   }
 };
+
 
 export {
   loginAdmin,
@@ -288,5 +318,6 @@ export {
   updateUserDetails,
   getClubbingDetails,
   updateManifestStatus,
-  addNote
+  addNote,
+  getNote
 };

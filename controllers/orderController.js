@@ -1,6 +1,8 @@
 import Order from '../models/orderModel.js'; // Import the Order model
 import User from '../models/userModel.js';
 import Clubbing from '../models/clubbingModel.js';
+import Dispute from '../models/disputeModel.js';
+import mongoose from 'mongoose';
 
 // Controller function to handle order creation
  const createOrder = async (req, res) => {
@@ -190,5 +192,152 @@ const clubOrders = async (req, res) => {
   }
 };
 
+const getDisputedOrders = async (req, res) => {
+  try {
+    // Extract userId from auth middleware
+    const userId = req.user?._id || req.user?.userId;
 
-export { createOrder, updateOrderStatus, getTotalOrderCount, getAllOrders, clubOrders };
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID is required",
+      });
+    }
+
+    // Validate MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID format",
+      });
+    }
+
+    // Fetch disputes where the logged-in user is the client
+    const disputes = await Dispute.find({ clientId: userId }).populate('orderIds', 'firstName lastName invoiceNo' );
+
+    if (!disputes.length) {
+      return res.status(200).json({
+        success: true,
+        message: "No disputes found for this user",
+        disputes: [],
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Disputes fetched successfully",
+      disputes,
+    });
+  } catch (error) {
+    console.error("Error fetching disputes:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+
+
+const updateDisputeStatus = async (req, res) => {
+  try {
+    const { id } = req.params; // disputeId from URL
+    const { action, reason } = req.body; 
+    // `action` can be "approve" or "reject"
+
+    // Validate disputeId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid dispute ID format",
+      });
+    }
+
+    // Validate action
+    if (!["approve", "reject"].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: "Action must be either 'approve' or 'reject'",
+      });
+    }
+
+    // Find dispute and populate orderIds
+    const dispute = await Dispute.findById(id).populate("orderIds");
+    if (!dispute) {
+      return res.status(404).json({
+        success: false,
+        message: "Dispute not found",
+      });
+    }
+
+    // Ensure associated orders exist
+    const orders = await Order.find({ _id: { $in: dispute.orderIds } });
+    if (!orders || orders.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Associated orders not found",
+      });
+    }
+
+    if (action === "approve") {
+      // Update all orders in the dispute
+      await Order.updateMany(
+        { _id: { $in: dispute.orderIds } },
+        { 
+          $set: { 
+            orderStatus: "Shipped",
+            manifestStatus: "dispatched"
+          } 
+        }
+      );
+
+      // Update dispute
+      dispute.status = "resolved";
+      dispute.clientResponse = "accepted";
+      dispute.adminNotes = "Dispute approved by admin";
+      await dispute.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Dispute approved and orders updated successfully",
+      });
+    }
+
+    if (action === "reject") {
+      if (!reason || reason.trim() === "") {
+        return res.status(400).json({
+          success: false,
+          message: "Rejection reason required",
+        });
+      }
+
+      // Update orders as needed (keeping them in disputed status)
+      await Order.updateMany(
+        { _id: { $in: dispute.orderIds } },
+        { $set: { orderStatus: "Disputed" } } 
+      );
+
+      // Update dispute
+      dispute.status = "escalated";
+      dispute.clientResponse = "rejected";
+      dispute.adminNotes = reason;
+      await dispute.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Dispute rejected and orders updated successfully",
+      });
+    }
+  } catch (error) {
+    console.error("Error updating dispute status:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+export { createOrder, updateOrderStatus,updateDisputeStatus, getTotalOrderCount, getAllOrders, clubOrders, getDisputedOrders };

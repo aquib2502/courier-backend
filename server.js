@@ -13,6 +13,7 @@ import rateRoutes from './routes/rateRoutes.js'
 import { initializeSocket } from './utils/socket.js';
 import http, { Server } from 'http';
 import notificationRoutes from './routes/notificationRoutes.js';
+import cookieParser from 'cookie-parser';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config();
@@ -29,8 +30,27 @@ const server = http.createServer(app); // ✅ CORRECT
 // Initialize Socket.IO with the actual server instance
 initializeSocket(server); // ✅ Pass the instance, not the class
 
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://thetraceexpress.com',
+  'https://admin.thetraceexpress.com',
+];
 
+app.use(cors({
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true, // allow cookies to be sent
+}));
+
+app.use(cookieParser());
 app.use(express.json());
 
 app.get('/', (req, res) => {

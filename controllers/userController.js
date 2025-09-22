@@ -55,21 +55,41 @@ const loginUser = async (req, res) => {
     const { email, password } = req.body;
 
     try {
+        // Find user by email
         const user = await User.findOne({ email });
 
         if (!user) {
             return res.status(400).json({ message: 'User not found. Please register.' });
         }
 
-        const comparePassword = await bcrypt.compare(password, user.password);
-        if (!comparePassword) {
+        // Compare password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
-        // Generate JWT token with the secret from the environment variable
-        const token = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        // Generate access token (JWT)
+        const token = jwt.sign(
+            { userId: user._id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
 
-        // Send token to frontend
+        // Generate refresh token (JWT)
+        const refreshToken = jwt.sign(
+            { userId: user._id, email: user.email },
+            process.env.REFRESH_SECRET,
+            { expiresIn: '7d' }
+        );
+
+   res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: false,           // localhost only
+    sameSite: 'Lax',         // change to Lax for local dev
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+});
+        // Send access token to frontend
         res.status(200).json({ message: 'Login successful', token });
     } catch (err) {
         console.error('Login error:', err);
@@ -226,4 +246,30 @@ const getPickupAddress = async (req, res) => {
   }
 };
 
-export {registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress, getOrderCountForUser};
+const refreshToken = async (req, res) => {
+  const token = req.cookies.refreshToken; // read HTTP-only cookie
+  if (!token) return res.status(401).json({ message: "No refresh token" });
+
+  try {
+    const payload = jwt.verify(token, process.env.REFRESH_SECRET);
+    const user = await User.findById(payload.userId);
+
+    if (!user || user.refreshToken !== token) {
+      return res.status(403).json({ message: "Invalid refresh token" });
+    }
+
+    const newAccessToken = jwt.sign(
+      { userId: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.status(200).json({ accessToken: newAccessToken });
+  } catch (err) {
+    console.error("Refresh token error:", err);
+    res.status(403).json({ message: "Invalid or expired refresh token" });
+  }
+};
+
+
+export {registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress, getOrderCountForUser, refreshToken};
