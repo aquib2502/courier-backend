@@ -84,7 +84,7 @@ const loginUser = async (req, res) => {
 
    res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
-    secure: false,           // localhost only
+    secure: true,           // production
     sameSite: 'Lax',         // change to Lax for local dev
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000
