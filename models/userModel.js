@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: 6 },
     confirmPassword: { type: String, minlength: 6 },
+    walletBalance: { type: Number, default: 0 }, // <-- wallet balance
     mobile: { type: String, trim: true },
     kycStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     // Multiple pickup addresses as an array of objects
