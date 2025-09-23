@@ -77,12 +77,11 @@ export const callShipmentAPI = async (orderData) => {
         IGSTAmount: "0",
         FreightCharge: "0",
         InsuranceCharge: "0",
-        ReferenceNumber: orderData.invoiceNo,
-        PackageType: "UPS PAK",
+        PackageType: " ",
         MEIS: "No",
         DutyTaxPaid: "",
         DutiesAccountNo: "",
-        ForwarderService: "ECONOMY-USPS",
+        ForwarderService: "Ground-03",
         InsuredValue: "0"
       }
     ]
