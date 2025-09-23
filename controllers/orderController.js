@@ -3,6 +3,7 @@ import User from '../models/userModel.js';
 import Clubbing from '../models/clubbingModel.js';
 import Dispute from '../models/disputeModel.js';
 import mongoose from 'mongoose';
+import { callShipmentAPI } from '../utils/shipmentService.js';
 
 // Controller function to handle order creation
  const createOrder = async (req, res) => {
@@ -39,6 +40,18 @@ import mongoose from 'mongoose';
       invoiceNo: serialNumber // Save the userId in the order
     });
 
+    await newOrder.save();
+
+        // Call shipment API via service
+    const shipmentData = await callShipmentAPI(newOrder);
+
+    // Save shipment response
+    newOrder.shipmentResponses = shipmentData.ShipmentResponses;
+    newOrder.shipmentDetails = shipmentData.shipmentDetails;
+    if (shipmentData.shipmentDetails && shipmentData.shipmentDetails.length > 0) {
+  newOrder.lastMileAWB = shipmentData.shipmentDetails[0].AwbNo;
+}
+    
     await newOrder.save();
 
     res.status(201).json({
