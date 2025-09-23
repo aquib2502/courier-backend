@@ -82,13 +82,15 @@ const loginUser = async (req, res) => {
             { expiresIn: '7d' }
         );
 
-   res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: true,           // production
-    sameSite: 'Lax',         // change to Lax for local dev
-    path: '/',
-    maxAge: 7 * 24 * 60 * 60 * 1000
+res.cookie('refreshToken', refreshToken, {
+  httpOnly: true,
+  secure: true,           // must be HTTPS
+  sameSite: 'None',       // required for cross-domain
+  domain: '.thetraceexpress.com', // note the leading dot
+  path: '/',
+  maxAge: 7 * 24 * 60 * 60 * 1000
 });
+
         // Send access token to frontend
         res.status(200).json({ message: 'Login successful', token });
     } catch (err) {
