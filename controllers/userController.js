@@ -249,19 +249,16 @@ const getPickupAddress = async (req, res) => {
 };
 
 const refreshToken = async (req, res) => {
-  const token = req.cookies.refreshToken; // read HTTP-only cookie
+  const token = req.cookies.refreshToken; // Read HTTP-only cookie
   if (!token) return res.status(401).json({ message: "No refresh token" });
 
   try {
+    // Verify token signature and expiration only
     const payload = jwt.verify(token, process.env.REFRESH_SECRET);
-    const user = await User.findById(payload.userId);
 
-    if (!user || user.refreshToken !== token) {
-      return res.status(403).json({ message: "Invalid refresh token" });
-    }
-
+    // Generate a new access token
     const newAccessToken = jwt.sign(
-      { userId: user._id, email: user.email },
+      { userId: payload.userId, email: payload.email },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
@@ -272,6 +269,7 @@ const refreshToken = async (req, res) => {
     res.status(403).json({ message: "Invalid or expired refresh token" });
   }
 };
+
 
 
 export {registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress, getOrderCountForUser, refreshToken};
