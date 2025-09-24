@@ -1,5 +1,5 @@
 import express from 'express';
-import { registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress , getOrderCountForUser, refreshToken} from '../controllers/userController.js';
+import { registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress , getOrderCountForUser, refreshToken, fetchUserTransaction} from '../controllers/userController.js';
 import upload from '../middlewares/upload.js';
 import authMiddleware from '../middlewares/authMiddleware.js';
 const router = express.Router();
@@ -19,6 +19,8 @@ router.post(
 
 
 router.post('/loginUser', loginUser);
+
+router.get('/transactions',authMiddleware, fetchUserTransaction)
 
 router.post('/refreshToken', refreshToken)
 

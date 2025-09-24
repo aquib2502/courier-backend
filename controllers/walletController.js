@@ -13,17 +13,18 @@ const env = Env.PRODUCTION
 const client = StandardCheckoutClient.getInstance(clientId, clientSecret, clientVersion, env)
 
 
-// Helper function to generate unique merchant order ID
-const generateMerchantOrderId = async () => {
-  // Count existing transactions
-  const count = await Transaction.countDocuments();
-
-  // Increment count for the new transaction
-  const newNumber = count + 1;
-
-  // Format: TET + 6-digit zero-padded number
-  return `TET${String(newNumber).padStart(6, "0")}`;
+// Helper function to generate a globally unique merchant order ID
+const generateMerchantOrderId = () => {
+  const timestamp = Date.now(); // milliseconds since epoch
+  const randomPart = Math.floor(Math.random() * 1000); // 0-999
+  // Format: TET + timestamp + 3-digit random number
+  return `TET${timestamp}${String(randomPart).padStart(3, "0")}`;
 };
+
+// Example usage
+const newOrderId = generateMerchantOrderId();
+console.log(newOrderId); // TET1706139245678001
+
 
 // Recharge wallet and create a transaction
 const rechargeWallet = async (req, res) => {
@@ -36,7 +37,8 @@ const rechargeWallet = async (req, res) => {
     }
 
     // Convert amount to paise for PhonePe
-    const amountInPaise = amount * 100;
+    const amountInPaise = Math.round(amount * 100);
+
 
     // Generate a unique merchant order ID
     const merchantOrderId = await generateMerchantOrderId();
@@ -45,6 +47,8 @@ const rechargeWallet = async (req, res) => {
 
     // Correct query string format
     const redirectUrl = `${backendUrl}/api/wallet/check-status?merchantOrderId=${merchantOrderId}&userId=${userId}&amount=${amount}`;
+
+    console.log({ merchantOrderId, amountInPaise, redirectUrl });
 
     // Save initial transaction with PENDING status
     const transaction = new Transaction({

@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken'
 import Order from "../models/orderModel.js";
 import bcrypt from 'bcryptjs';
 import mongoose from "mongoose";
+import Transaction from "../models/transactionModel.js";
 
   const registerUser = async (req, res) => {
   try {
@@ -270,6 +271,34 @@ const refreshToken = async (req, res) => {
   }
 };
 
+const fetchUserTransaction = async (req, res) => {
+  try {
+    // req.user comes from authMiddleware
+    const userId = req.user._id || req.user.userId;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: "Invalid user ID" });
+    }
+
+    // Fetch transaction(s) for the user
+    const transactions = await Transaction.find({ user: userId });
+
+    if (!transactions || transactions.length === 0) {
+      return res.status(404).json({ success: false, message: "No transactions found for this user" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Transaction(s) fetched successfully",
+      data: transactions
+    });
+
+  } catch (error) {
+    console.error('Error fetching transaction', error);
+    return res.status(500).json({ success: false, message: 'Error fetching transaction' });
+  }
+};
 
 
-export {registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress, getOrderCountForUser, refreshToken};
+export {registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress, getOrderCountForUser, refreshToken, fetchUserTransaction};
