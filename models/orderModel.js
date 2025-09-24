@@ -48,6 +48,7 @@ const orderSchema = new Schema({
   state: { type: String, required: true },
   HSNCode: { type: String, required: true },
   invoiceName: { type: String, required: false },
+  totalAmount:{type:Number, required: true},
 
   // Shipment information
   shipmentType: { type: String },

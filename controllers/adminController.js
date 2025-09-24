@@ -310,6 +310,71 @@ export const adminRaiseDispute = async (req, res) => {
   }
 };
 
+const giveCredit = async (req, res) => {
+  try {
+    const { userId, creditLimit } = req.body;
+
+    if (!userId || creditLimit === undefined) {
+      return res.status(400).json({ success: false, message: 'User ID and credit limit are required' });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Give credit
+    user.hasCredit = true;
+    user.creditLimit = creditLimit;
+    user.usedCredit = 0; // Reset used credit
+    user.creditResetDate = new Date(); // Start of the credit period
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Credit of ${creditLimit} given to user ${user.name}`,
+      data: {
+        userId: user._id,
+        creditLimit: user.creditLimit,
+        usedCredit: user.usedCredit
+      }
+    });
+
+  } catch (error) {
+    console.error('Error giving credit:', error);
+    res.status(500).json({ success: false, message: 'Something went wrong' });
+  }
+};
+
+const resetMonthlyCredit = async () => {
+  try {
+    const now = new Date();
+
+    // Find users with credit
+    const usersWithCredit = await User.find({ hasCredit: true });
+
+    for (const user of usersWithCredit) {
+      if (!user.creditResetDate) continue;
+
+      // Calculate next reset date (1 month after last reset)
+      const nextReset = new Date(user.creditResetDate);
+      nextReset.setMonth(nextReset.getMonth() + 1);
+
+      if (now >= nextReset) {
+        user.usedCredit = 0;
+        user.creditResetDate = now;
+        await user.save();
+        console.log(`Credit reset for user: ${user.fullname}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error resetting monthly credit:', error);
+  }
+};
+
+
 
 export {
   loginAdmin,
@@ -319,5 +384,7 @@ export {
   getClubbingDetails,
   updateManifestStatus,
   addNote,
-  getNote
+  getNote,
+  giveCredit,
+  resetMonthlyCredit
 };

@@ -36,6 +36,12 @@ const userSchema = new mongoose.Schema({
     gstProof: { type: String },
     iecProof: { type: String },
 
+      // Credit fields
+  hasCredit: { type: Boolean, default: false },   // Is user allowed credit
+  creditLimit: { type: Number, default: 0 },     // Maximum credit allowed
+  usedCredit: { type: Number, default: 0 },      // Credit used so far
+  creditResetDate: { type: Date } ,
+
     discountRate: { type: Number, default: 0 }, // in percentage
     // Approval flow
     isApproved: { type: Boolean, default: false },

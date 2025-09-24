@@ -5,68 +5,94 @@ import Dispute from '../models/disputeModel.js';
 import mongoose from 'mongoose';
 import { callShipmentAPI } from '../utils/shipmentService.js';
 
+
 // Controller function to handle order creation
- const createOrder = async (req, res) => {
+const createOrder = async (req, res) => {
   try {
-    console.log('Request Body:', req.body);  // Log the request body to verify if userId is there
+    console.log('Request Body:', req.body);
 
-    const { user, ...orderData } = req.body;  // Destructure userId from the body
+    const { user, totalAmount, ...orderData } = req.body;
 
-    // Ensure userId is being passed
     if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: 'User ID is required to create an order'
-      });
+      return res.status(400).json({ success: false, message: 'User ID is required' });
     }
 
-    // Log the userId for debugging
-    console.log('Received userId:', user);
+    // Fetch user
+    const userDoc = await User.findById(user);
 
-    const userKyc = await User.findById(user);
-    
-    if(userKyc.kycStatus !== 'approved') {
-      return res.status(400).json({
-        success: false,
-        message: 'User KYC is not approved. Cannot create order.'
-      });
+    if (!userDoc) {
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const serialNumber = await  generateSerialNumber();
-    // Create a new order instance, ensuring userId is included
+    // Check KYC
+    if (userDoc.kycStatus !== 'approved') {
+      return res.status(400).json({ success: false, message: 'User KYC is not approved' });
+    }
+
+    // Calculate available funds
+    const availableWallet = userDoc.walletBalance;
+    const availableCredit = userDoc.hasCredit ? (userDoc.creditLimit - userDoc.usedCredit) : 0;
+    const totalAvailable = availableWallet + availableCredit;
+
+    if (totalAvailable < totalAmount) {
+      return res.status(400).json({ success: false, message: 'Insufficient funds or credit' });
+    }
+
+    // Deduct wallet first, then credit if needed
+    let remainingAmount = totalAmount;
+
+    if (availableWallet >= remainingAmount) {
+      userDoc.walletBalance -= remainingAmount;
+      remainingAmount = 0;
+    } else {
+      remainingAmount -= availableWallet;
+      userDoc.walletBalance = 0;
+    }
+
+    if (remainingAmount > 0) {
+      userDoc.usedCredit = (userDoc.usedCredit || 0) + remainingAmount;
+    }
+
+    await userDoc.save();
+
+    // Generate serial number
+    const serialNumber = await generateSerialNumber();
+
+    // Create new order
     const newOrder = new Order({
       ...orderData,
       user: user,
-      invoiceNo: serialNumber // Save the userId in the order
+      totalAmount: totalAmount,
+      invoiceNo: serialNumber
     });
 
     await newOrder.save();
 
-        // Call shipment API via service
+    // Call shipment API
     const shipmentData = await callShipmentAPI(newOrder);
 
-    // Save shipment response
     newOrder.shipmentResponses = shipmentData.ShipmentResponses;
     newOrder.shipmentDetails = shipmentData.shipmentDetails;
     if (shipmentData.shipmentDetails && shipmentData.shipmentDetails.length > 0) {
-  newOrder.lastMileAWB = shipmentData.shipmentDetails[0].AwbNo;
-}
-    
+      newOrder.lastMileAWB = shipmentData.shipmentDetails[0].AwbNo;
+    }
+
     await newOrder.save();
 
     res.status(201).json({
       success: true,
       message: 'Order created successfully!',
-      data: newOrder
+      data: newOrder,
+      walletBalance: userDoc.walletBalance,
+      usedCredit: userDoc.usedCredit
     });
+
   } catch (error) {
-    console.error('Error creating order:', error);  // Log the error for debugging
-    res.status(500).json({
-      success: false,
-      message: 'Something went wrong, please try again later.'
-    });
+    console.error('Error creating order:', error);
+    res.status(500).json({ success: false, message: 'Something went wrong, please try again later.' });
   }
 };
+
 
 
 const updateOrderStatus = async (req, res) => {
