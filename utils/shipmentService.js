@@ -81,7 +81,7 @@ export const callShipmentAPI = async (orderData) => {
         MEIS: "No",
         DutyTaxPaid: "",
         DutiesAccountNo: "",
-        ForwarderService: "Ground-03",
+        ForwarderService: "ECONOMY-USPS",
         InsuredValue: "0"
       }
     ]
