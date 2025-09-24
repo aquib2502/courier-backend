@@ -1,15 +1,11 @@
-import express from "express";
-import { createPayment, handleWebhook } from "../controllers/walletController.js";
+import express from 'express'
+import { Router } from 'express'
+import { checkStatus, rechargeWallet } from '../controllers/walletController.js'
+const router = Router()
 
-const router = express.Router();
+router.post('/recharge-wallet', rechargeWallet)
 
-// Route to get token
-// router.get("/token", getPhonePeToken);
+router.get('/check-status', checkStatus)
 
-// Route to create payment
-router.post("/pay", createPayment);
+export default router
 
-// Webhook route (PhonePe will POST here)
-router.post("/webhook", express.json(), handleWebhook);
-
-export default router;

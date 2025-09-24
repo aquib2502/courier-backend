@@ -1,104 +1,150 @@
-import axios from "axios";
-import User from "../models/userModel.js";
+import { StandardCheckoutClient, Env,StandardCheckoutPayRequest } from "pg-sdk-node";
+import dotenv from 'dotenv'
 import Transaction from "../models/transactionModel.js";
+import User from "../models/userModel.js";
+dotenv.config()
 
-// Generate unique merchant order ID
-export const generateMerchantOrderId = async () => {
+
+const clientId = process.env.PG_CLIENT_ID
+const clientSecret = process.env.PG_CLIENT_SECRET
+const clientVersion = 1
+const env = Env.PRODUCTION
+
+const client = StandardCheckoutClient.getInstance(clientId, clientSecret, clientVersion, env)
+
+
+// Helper function to generate unique merchant order ID
+const generateMerchantOrderId = async () => {
+  // Count existing transactions
   const count = await Transaction.countDocuments();
-  return `TET${String(count + 1).padStart(6, "0")}`;
+
+  // Increment count for the new transaction
+  const newNumber = count + 1;
+
+  // Format: TET + 6-digit zero-padded number
+  return `TET${String(newNumber).padStart(6, "0")}`;
 };
 
-// Get PhonePe Access Token
-const getPhonePeAccessToken = async () => {
-  const body = new URLSearchParams({
-    client_version: 1,
-    grant_type: "client_credentials",
-    client_id: process.env.PG_CLIENT_ID,
-    client_secret: process.env.PG_CLIENT_SECRET
-  }).toString();
-
-  const response = await axios.post(
-    "https://api.phonepe.com/apis/identity-manager/v1/oauth/token",
-    body,
-    { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-  );
-
-  if (!response.data?.access_token) throw new Error("Failed to get access token");
-  return response.data.access_token;
-};
-
-// Create Payment
-export const createPayment = async (req, res) => {
+// Recharge wallet and create a transaction
+const rechargeWallet = async (req, res) => {
   try {
-    const { userId, amount, redirectUrl, metaInfo } = req.body;
+    const { amount, userId } = req.body;
 
-    if (!userId || !amount || !redirectUrl) {
-      return res.status(400).json({ error: "userId, amount, and redirectUrl are required" });
+    // Validate input
+    if (!amount || !userId) {
+      return res.status(400).send('Amount and User ID are required');
     }
 
+    // Convert amount to paise for PhonePe
+    const amountInPaise = amount * 100;
+
+    // Generate a unique merchant order ID
     const merchantOrderId = await generateMerchantOrderId();
 
-    const transaction = await Transaction.create({
+    const backendUrl = process.env.BACKEND_URL
+
+    // Correct query string format
+    const redirectUrl = `${backendUrl}/api/wallet/check-status?merchantOrderId=${merchantOrderId}&userId=${userId}&amount=${amount}`;
+
+    // Save initial transaction with PENDING status
+    const transaction = new Transaction({
       user: userId,
-      merchantOrderId,
       amount,
-      metaInfo,
-      status: "PENDING"
+      merchantOrderId,
+      status: 'PENDING',
     });
-
-    const accessToken = await getPhonePeAccessToken();
-
-    const requestBody = {
-      merchantOrderId,
-      amount,
-      expireAfter: 1200, // optional
-      metaInfo: metaInfo || {},
-      paymentFlow: {
-        type: "PG_CHECKOUT",
-        message: "Wallet recharge",
-        merchantUrls: { redirectUrl }
-      }
-    };
-
-    const response = await axios.post(
-      "https://api.phonepe.com/apis/pg/checkout/v2/pay",
-      requestBody,
-      { headers: { "Content-Type": "application/json", "Authorization": `O-Bearer ${accessToken}` } }
-    );
-
-    // Return redirectUrl properly
-    const redirect = response.data?.data?.redirectUrl;
-    res.json({ redirectUrl: redirect, transaction });
-  } catch (error) {
-    console.error("Payment Error:", error.response?.data || error.message);
-    res.status(500).json({ error: "Failed to create payment" });
-  }
-};
-
-// Webhook Handler
-export const handleWebhook = async (req, res) => {
-  try {
-    const { event, payload } = req.body;
-
-    // Only process relevant events
-    if (!["checkout.order.completed", "checkout.order.failed"].includes(event)) {
-      return res.status(200).send("Event ignored");
-    }
-
-    const merchantOrderId = payload.merchantOrderId;
-    const transaction = await Transaction.findOne({ merchantOrderId });
-    if (!transaction) return res.status(404).send("Transaction not found");
-
-    transaction.status = payload.state === "SUCCESS" ? "SUCCESS" : "FAILED";
     await transaction.save();
 
-    if (transaction.status === "SUCCESS") {
-      await User.findByIdAndUpdate(transaction.user, { $inc: { walletBalance: transaction.amount } });
-    }
+    // Build the request for PhonePe
+    const request = StandardCheckoutPayRequest.builder()
+      .merchantOrderId(merchantOrderId)
+      .amount(amountInPaise) // <-- PhonePe expects amount in paise
+      .redirectUrl(redirectUrl)
+      .build();
 
-    res.status(200).send("OK");
+    // Send payment request to PhonePe
+    const response = await client.pay(request);
+
+    return res.json({
+      checkoutPageUrl: response.redirectUrl,
+    });
   } catch (error) {
-    console.error("Webhook Error:", error.message);
-    res.status(500).send("Error processing webhook");
+    console.error('Error recharging wallet:', error);
+    res.status(500).send('Error Recharging Wallet');
   }
 };
+
+// Check payment status and update user balance
+const checkStatus = async (req, res) => {
+  try {
+    const { merchantOrderId, userId, amount } = req.query;
+
+    // Validate inputs
+    if (!merchantOrderId || !userId || !amount) {
+      return res
+        .status(400)
+        .send('MerchantOrder ID, User ID, and Amount are required');
+    }
+
+    // Get order status from PhonePe
+    const response = await client.getOrderStatus(merchantOrderId);
+    const status = response.state;
+
+    const frontendUrl = process.env.FRONTEND_URL
+
+    // If transaction completed successfully
+    if (status === 'COMPLETED') {
+      // Update transaction status
+      const transaction = await Transaction.findOneAndUpdate(
+        { merchantOrderId },
+        { $set: { status: 'COMPLETED' } },
+        { new: true }
+      );
+
+      if (!transaction) {
+        console.log('Transaction not found');
+      } else {
+        console.log('Updated Transaction:', transaction);
+      }
+
+      // Increment user's wallet balance instead of replacing it
+      const user = await User.findOneAndUpdate(
+        { _id: userId },
+        { $inc: { walletBalance: Number(amount) } }, // increment balance
+        { new: true }
+      );
+
+      if (!user) {
+        console.error('User not found');
+      } else {
+        console.log('Updated User Wallet Balance:', user.walletBalance);
+      }
+
+      return res.redirect(
+        `${frontendUrl}/wallet/success?status=${status}`
+      );
+    } else {
+      // If payment failed, update status as FAILED
+      const transaction = await Transaction.findOneAndUpdate(
+        { merchantOrderId },
+        { $set: { status: 'FAILED' } },
+        { new: true }
+      );
+
+      if (!transaction) {
+        console.log('Transaction not found');
+      } else {
+        console.log('Updated Transaction:', transaction);
+      }
+
+      return res.redirect(
+        `${frontendUrl}/wallet/failure?status=${status}`
+      );
+    }
+  } catch (error) {
+    console.error('Error checking status:', error);
+    res.status(500).send('Error checking status');
+  }
+};
+
+export {rechargeWallet, checkStatus}
