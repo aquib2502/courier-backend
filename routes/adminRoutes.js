@@ -2,7 +2,7 @@ import { Router } from "express";
 import nodeCron from "node-cron";
 const router = Router();    
 
-import { loginAdmin, getUsersWithOrders, editUserKYCStatus, updateUserDetails   , getClubbingDetails, updateManifestStatus, addNote, adminRaiseDispute, getNote, giveCredit, resetMonthlyCredit } from "../controllers/adminController.js";
+import { loginAdmin, getUsersWithOrders, editUserKYCStatus, updateUserDetails   , getClubbingDetails, updateManifestStatus, addNote, adminRaiseDispute, getNote, giveCredit, resetMonthlyCredit, updateCredit, getAllTransactions } from "../controllers/adminController.js";
 
 router.post("/login", loginAdmin);
 
@@ -16,6 +16,8 @@ router.get('/getNote', getNote)
 
 router.post('/give-credit', giveCredit)
 
+router.put('/update-credit', updateCredit)
+
 router.post('/reset-credit', async (req, res) => {
   try {
     await resetMonthlyCredit();
@@ -25,6 +27,8 @@ router.post('/reset-credit', async (req, res) => {
     res.status(500).json({ success: false, message: 'Error resetting credit' });
   }
 });
+
+router.get('/getAllTransactions', getAllTransactions)
 
 router.post('/raise-dispute', adminRaiseDispute)
 

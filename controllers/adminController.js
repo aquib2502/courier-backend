@@ -8,6 +8,7 @@ import Manifest from "../models/manifestModel.js";
 import Note from "../models/noteModel.js";
 import { raiseDispute } from "./notificationController.js";
 import Dispute from "../models/disputeModel.js";
+import Transaction from "../models/transactionModel.js";
 
 dotenv.config();
 
@@ -348,6 +349,56 @@ const giveCredit = async (req, res) => {
   }
 };
 
+const updateCredit = async (req, res) => {
+  try {
+    const { userId, creditLimit } = req.body;
+
+    if (!userId || creditLimit === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID and credit limit are required'
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Only update creditLimit, preserve usedCredit
+    user.creditLimit = creditLimit;
+
+    // Ensure hasCredit is true
+    if (!user.hasCredit) {
+      user.hasCredit = true;
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Credit limit updated successfully for ${user.fullname}`,
+      data: {
+        userId: user._id,
+        fullname: user.fullname,
+        creditLimit: user.creditLimit,
+        usedCredit: user.usedCredit,       // preserved
+        creditResetDate: user.creditResetDate,
+        hasCredit: user.hasCredit
+      }
+    });
+  } catch (error) {
+    console.error('Error updating credit:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Something went wrong while updating credit'
+    });
+  }
+};
+
 const resetMonthlyCredit = async () => {
   try {
     const now = new Date();
@@ -374,6 +425,25 @@ const resetMonthlyCredit = async () => {
   }
 };
 
+const getAllTransactions = async (req, res) => {
+  try {
+    const transactions = await Transaction.find({}).populate('user', 'fullname email mobile');
+
+    return res.status(200).json({
+      success: true,
+      message: 'Transactions fetched successfully',
+      data: transactions
+    });
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error fetching transactions'
+    });
+  }
+};
+
+
 
 
 export {
@@ -386,5 +456,7 @@ export {
   addNote,
   getNote,
   giveCredit,
-  resetMonthlyCredit
+  resetMonthlyCredit,
+  updateCredit,
+  getAllTransactions
 };
