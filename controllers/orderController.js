@@ -3,15 +3,14 @@ import User from '../models/userModel.js';
 import Clubbing from '../models/clubbingModel.js';
 import Dispute from '../models/disputeModel.js';
 import mongoose from 'mongoose';
-import { callShipmentAPI } from '../utils/shipmentService.js';
+import { UnitedCallShipmentAPI } from '../utils/UnitedShipmentService.js';
 
 
-// Controller function to handle order creation
 const createOrder = async (req, res) => {
   try {
     console.log('Request Body:', req.body);
 
-    const { user, totalAmount, ...orderData } = req.body;
+    const { user, totalAmount, shippingPartner, ...orderData } = req.body;
 
     if (!user) {
       return res.status(400).json({ success: false, message: 'User ID is required' });
@@ -63,20 +62,77 @@ const createOrder = async (req, res) => {
       ...orderData,
       user: user,
       totalAmount: totalAmount,
-      invoiceNo: serialNumber
+      invoiceNo: serialNumber,
+      shippingPartner: {
+        name: shippingPartner.name,  // Save the name of the shipping partner
+        type: shippingPartner.type   // Save the type of the shipping partner
+      }
     });
 
-    await newOrder.save();
+   // Common shipment details object to store AWB, tracking, and PDF
+let shipmentDetails = {
+  trackingNumber: null,
+  awbNumber: null,
+  pdf: null,
+  weight: null,
+  service: null,
+  thirdPartyService: null
+};
 
-    // Call shipment API
-    const shipmentData = await callShipmentAPI(newOrder);
+// Check the shipping partner and call the appropriate API
+if (shippingPartner.name.includes('Self')) {
+  // United API call
+  const shipmentData = await UnitedCallShipmentAPI(newOrder);
 
-    newOrder.shipmentResponses = shipmentData.ShipmentResponses;
-    newOrder.shipmentDetails = shipmentData.shipmentDetails;
-    if (shipmentData.shipmentDetails && shipmentData.shipmentDetails.length > 0) {
-      newOrder.lastMileAWB = shipmentData.shipmentDetails[0].AwbNo;
+  console.log("United API Response:", shipmentData);
+
+  // Check if shipmentDetails exists and has data
+  if (shipmentData.shipmentDetails && shipmentData.shipmentDetails.length > 0) {
+    const details = shipmentData.shipmentDetails[0];
+    shipmentDetails = {
+      trackingNumber: details.TrackingNo,
+      awbNumber: details.AwbNo,
+      pdf: details.PDF,
+      weight: details.Weight,
+      service: details.Service,
+      thirdPartyService: details.ThirdPartyService
+    };
+  } else {
+    console.error("No shipment details available in the response from United API");
+    throw new Error('No shipment details available in the response from United API');
+  }
+
+} else {
+  // ShipGlobal API call
+  const shipmentData = await ShipGlobalShipmentCallApi(newOrder);
+
+  // Fetch the AWB number from ShipGlobal tracking endpoint
+  const trackingResponse = await axios.post('https://app.shipglobal.in/apiv1/tools/tracking', {
+    tracking: shipmentData.trackingNo  // Send tracking number to ShipGlobal tracking endpoint
+  }, {
+    headers: {
+      'Authorization': 'Basic ' + btoa(`${process.env.SG_USERNAME}:${process.env.SG_PASSWORD}`)
     }
+  });
 
+  // Store all relevant fields in the unified shipment details object
+  shipmentDetails = {
+    trackingNumber: shipmentData.trackingNo,  // ShipGlobal Tracking number
+    awbNumber: trackingResponse.data.data.awbInfo.awb_number,  // ShipGlobal AWB number
+    pdf: trackingResponse.data.data.awbInfo.PDF,  // PDF URL
+    weight: shipmentData.weight,  // Weight
+    service: shipmentData.service,  // Service type
+    thirdPartyService: shipmentData.thirdPartyService  // Third party service
+  };
+}
+
+// Save the shipment details in the order
+newOrder.shipmentDetails = shipmentDetails;
+
+newOrder.lastMileAWB = shipmentDetails.awbNumber;
+
+
+    // Save order with unified shipment details
     await newOrder.save();
 
     res.status(201).json({
@@ -92,6 +148,7 @@ const createOrder = async (req, res) => {
     res.status(500).json({ success: false, message: 'Something went wrong, please try again later.' });
   }
 };
+
 
 
 

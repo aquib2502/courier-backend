@@ -2,32 +2,33 @@ import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
+// Product Schema
 const productSchema = new mongoose.Schema({
   productName: { type: String },
   productQuantity: { type: Number },
   productPrice: { type: Number }
 });
 
-// Shipment response schema
-const shipmentResponseSchema = new mongoose.Schema({
-  Status: { type: String },
-  Code: { type: String },
-  Description: { type: String }
+const ShipmentDetailSchema = new mongoose.Schema({
+  // Response data (common fields for both)
+  status: { type: String },             // e.g., "success", "failed"
+  code: { type: String },               // Response code
+  description: { type: String },        // Description of the status
+
+  // Common fields for both ShipGlobal and United
+  trackingNumber: { type: String },         // Unified tracking number
+  awbNumber: { type: String },              // Unified AWB number
+  weight: { type: Number },                 // Weight in KG
+  service: { type: String },                // Service type (e.g., "Express")
+  pdf: { type: String },                    // PDF URL (if available)
+  thirdPartyService: { type: String },      // Third party service used (if any)
+  
+  // Additional fields that may be needed
+  forwarder: { type: String },              // Forwarder name (e.g., "ShipGlobal")
+  mpsFedex: { type: String },               // FedEx tracking number (if available)
+  trackingNo2: { type: String },            // Another tracking number if available
 }, { _id: false });
 
-// Shipment details schema
-const shipmentDetailSchema = new mongoose.Schema({
-  AwbNo: { type: String },
-  Weight: { type: Number },
-  Service: { type: String },
-  ThirdPartyService: { type: String },
-  Amount: { type: String },
-  TrackingNo: { type: String },
-  TrackingNo2: { type: String },
-  Forwarder: { type: String },
-  PDF: { type: String },
-  MPSFedex: { type: String }
-}, { _id: false });
 
 const orderSchema = new Schema({
   user: {
@@ -48,10 +49,14 @@ const orderSchema = new Schema({
   state: { type: String, required: true },
   HSNCode: { type: String, required: true },
   invoiceName: { type: String, required: false },
-  totalAmount:{type:Number, required: true},
+  totalAmount: { type: Number, required: true },
 
   // Shipment information
   shipmentType: { type: String },
+  shippingPartner: {
+    name: { type: String, required: true },
+    type: { type: String, required: true }
+  },
   weight: { type: String },
   length: { type: String },
   width: { type: String },
@@ -67,13 +72,13 @@ const orderSchema = new Schema({
 
   paymentStatus: {
     type: String,
-    enum: ['Payment Pending','Payment Received','Packed','Manifested'],
+    enum: ['Payment Pending', 'Payment Received', 'Packed', 'Manifested'],
     default: 'Payment Pending'
   },
 
   orderStatus: {
     type: String,
-    enum: ['Drafts','Ready','Packed','Manifested','Shipped','Delivered','Cancelled','Refunded','disputed'],
+    enum: ['Drafts', 'Ready', 'Packed', 'Manifested', 'Shipped', 'Delivered', 'Cancelled', 'Refunded', 'disputed'],
     default: 'Drafts'
   },
 
@@ -99,11 +104,10 @@ const orderSchema = new Schema({
 
   lastMileAWB: { type: String },
 
-  product:{type:String},
+  product: { type: String },
 
-  // Store API response
-  shipmentResponses: [shipmentResponseSchema],
-  shipmentDetails: [shipmentDetailSchema],
+  // Store unified shipment response and details in one object
+  shipmentDetails: ShipmentDetailSchema,
 
   receivedAt: { type: Date, default: null }
 
