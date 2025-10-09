@@ -56,6 +56,7 @@ const rechargeWallet = async (req, res) => {
       amount,
       merchantOrderId,
       status: 'PENDING',
+      type: 'wallet-topup'
     });
     await transaction.save();
 

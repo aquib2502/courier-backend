@@ -7,6 +7,7 @@ const transactionSchema = new mongoose.Schema({
   status: { type: String, enum: ["PENDING", "COMPLETED", "FAILED"], default: "PENDING" },
   paymentMethod: { type: String, default: "PhonePe" },
   metaInfo: { type: Object }, // store extra info if needed
+  type: { type: String, enum: ["wallet-topup","order-booking"], required: true }
 }, { timestamps: true });
 
 const Transaction = mongoose.model("Transaction", transactionSchema);

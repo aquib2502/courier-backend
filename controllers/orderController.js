@@ -4,7 +4,15 @@ import Clubbing from '../models/clubbingModel.js';
 import Dispute from '../models/disputeModel.js';
 import mongoose from 'mongoose';
 import { UnitedCallShipmentAPI } from '../utils/UnitedShipmentService.js';
+import Transaction from '../models/transactionModel.js';
 
+
+const generateMerchantOrderId = () => {
+  const timestamp = Date.now(); // milliseconds since epoch
+  const randomPart = Math.floor(Math.random() * 1000); // 0-999
+  // Format: TET + timestamp + 3-digit random number
+  return `TET${timestamp}${String(randomPart).padStart(3, "0")}`;
+};
 
 const createOrder = async (req, res) => {
   try {
@@ -134,6 +142,21 @@ newOrder.lastMileAWB = shipmentDetails.awbNumber;
 
     // Save order with unified shipment details
     await newOrder.save();
+
+     const merchantOrderId = await generateMerchantOrderId();
+
+    const transation = new Transaction({
+      user: userDoc._id,
+      amount: totalAmount,
+      status: 'COMPLETED',
+      type: 'order-booking',
+      merchantOrderId
+    });
+    
+    await transation.save();
+
+
+      
 
     res.status(201).json({
       success: true,
