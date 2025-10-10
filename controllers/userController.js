@@ -5,10 +5,11 @@ import bcrypt from 'bcryptjs';
 import mongoose from "mongoose";
 import Transaction from "../models/transactionModel.js";
 
-  const registerUser = async (req, res) => {
+const registerUser = async (req, res) => {
   try {
     const { fullname, email, password, confirmPassword, aadharNumber, panNumber, gstNumber, iecNumber } = req.body;
 
+    // 1. Basic validations
     if (!fullname || !email || !password || !confirmPassword || !aadharNumber || !panNumber || !gstNumber || !iecNumber) {
       return res.status(400).json({ message: "All fields are required" });
     }
@@ -17,13 +18,36 @@ import Transaction from "../models/transactionModel.js";
       return res.status(400).json({ message: "Passwords do not match" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // 2. File validation — ensure all proofs exist
+    if (
+      !req.files?.aadharProof?.[0] ||
+      !req.files?.panProof?.[0] ||
+      !req.files?.gstProof?.[0] ||
+      !req.files?.iecProof?.[0]
+    ) {
+      return res.status(400).json({ message: "All document proofs must be uploaded" });
+    }
 
+    // 3. Validate file types and sizes (extra safe)
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+    const proofs = [req.files.aadharProof[0], req.files.panProof[0], req.files.gstProof[0], req.files.iecProof[0]];
+    for (const proof of proofs) {
+      if (!allowedTypes.includes(proof.mimetype)) {
+        return res.status(400).json({ message: "Please upload only JPG, PNG, or PDF files" });
+      }
+      if (proof.size > 5 * 1024 * 1024) {
+        return res.status(400).json({ message: "Each file must be under 5MB" });
+      }
+    }
+
+    // 4. Prevent duplicate users
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "Email already in use" });
     }
 
+    // 5. Hash and save
+    const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({
       fullname,
       email,
@@ -32,20 +56,18 @@ import Transaction from "../models/transactionModel.js";
       panNumber,
       gstNumber,
       iecNumber,
-      aadharProof: req.files?.aadharProof?.[0]?.filename || null,
-      panProof: req.files?.panProof?.[0]?.filename || null,
-      gstProof: req.files?.gstProof?.[0]?.filename || null,
-      iecProof: req.files?.iecProof?.[0]?.filename || null,
+      aadharProof: req.files.aadharProof[0].filename,
+      panProof: req.files.panProof[0].filename,
+      gstProof: req.files.gstProof[0].filename,
+      iecProof: req.files.iecProof[0].filename,
     });
 
-    
-
     await user.save();
-    res.status(201).json({ message: "Registration successful. Pending admin approval." });
+    return res.status(201).json({ message: "Registration successful. Pending admin approval." });
 
   } catch (err) {
     console.error("Error in registerUser:", err);
-    res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -115,7 +137,7 @@ res.cookie('refreshToken', refreshToken, {
       }
   
       // Fetch the orders by userId
-      const orders = await Order.find({ user }).populate('user', 'firstName lastName email');  // Populate user details if needed
+      const orders = await Order.find({ user }).populate('user', 'fullname email');  // Populate user details if needed
   
       if (orders.length === 0) {
         return res.status(404).json({
