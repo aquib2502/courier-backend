@@ -5,6 +5,8 @@ import Dispute from '../models/disputeModel.js';
 import mongoose from 'mongoose';
 import { UnitedCallShipmentAPI } from '../utils/UnitedShipmentService.js';
 import Transaction from '../models/transactionModel.js';
+import { ShipGlobalShipmentCallApi } from '../utils/SGSShipementService.js';
+import axios from 'axios';
 
 
 const generateMerchantOrderId = () => {
@@ -87,61 +89,52 @@ let shipmentDetails = {
   thirdPartyService: null
 };
 
-// Check the shipping partner and call the appropriate API
 if (shippingPartner.name.includes('Self')) {
-  // United API call
-  const shipmentData = await UnitedCallShipmentAPI(newOrder);
+    // United API call
+    const shipmentData = await UnitedCallShipmentAPI(newOrder);
+    console.log("United API Response:", shipmentData);
 
-  console.log("United API Response:", shipmentData);
-
-  // Check if shipmentDetails exists and has data
-  if (shipmentData.shipmentDetails && shipmentData.shipmentDetails.length > 0) {
-    const details = shipmentData.shipmentDetails[0];
-    shipmentDetails = {
-      trackingNumber: details.TrackingNo,
-      awbNumber: details.AwbNo,
-      pdf: details.PDF,
-      weight: details.Weight,
-      service: details.Service,
-      thirdPartyService: details.ThirdPartyService
-    };
-  } else {
-    console.error("No shipment details available in the response from United API");
-    throw new Error('No shipment details available in the response from United API');
-  }
-
-} else {
-  // ShipGlobal API call
-  const shipmentData = await ShipGlobalShipmentCallApi(newOrder);
-
-  // Fetch the AWB number from ShipGlobal tracking endpoint
-  const trackingResponse = await axios.post('https://app.shipglobal.in/apiv1/tools/tracking', {
-    tracking: shipmentData.trackingNo  // Send tracking number to ShipGlobal tracking endpoint
-  }, {
-    headers: {
-      'Authorization': 'Basic ' + btoa(`${process.env.SG_USERNAME}:${process.env.SG_PASSWORD}`)
+    if (shipmentData.shipmentDetails && shipmentData.shipmentDetails.length > 0) {
+        const details = shipmentData.shipmentDetails[0];
+        shipmentDetails = {
+            trackingNumber: details.TrackingNo,
+            awbNumber: details.AwbNo,
+            pdf: details.PDF,
+            weight: details.Weight,
+            service: details.Service,
+            thirdPartyService: details.ThirdPartyService
+        };
+    } else {
+        console.error("No shipment details available from United API");
+        throw new Error('No shipment details available');
     }
-  });
+} else {
+    // ShipGlobal API
+    shipmentDetails = await ShipGlobalShipmentCallApi(newOrder);  // update outer variable
+    
 
-  // Store all relevant fields in the unified shipment details object
-  shipmentDetails = {
-    trackingNumber: shipmentData.trackingNo,  // ShipGlobal Tracking number
-    awbNumber: trackingResponse.data.data.awbInfo.awb_number,  // ShipGlobal AWB number
-    pdf: trackingResponse.data.data.awbInfo.PDF,  // PDF URL
-    weight: shipmentData.weight,  // Weight
-    service: shipmentData.service,  // Service type
-    thirdPartyService: shipmentData.thirdPartyService  // Third party service
-  };
+ if (shipmentDetails.status === "failed") {
+    console.error("ShipGlobal API Error:", shipmentDetails); // full logging
+
+    // Check if API returned an error array
+    const errorsArray = Array.isArray(shipmentDetails.errors) 
+      ? shipmentDetails.errors 
+      : shipmentDetails.description && Array.isArray(shipmentDetails.description)
+        ? shipmentDetails.description
+        : null;
+
+    return res.status(400).json({
+      success: false,
+      message: errorsArray ? errorsArray.join(", ") : shipmentDetails.description || "Shipment failed",
+      errors: errorsArray,
+    });
+  }
 }
 
-// Save the shipment details in the order
+// Assign to order and save once
 newOrder.shipmentDetails = shipmentDetails;
-
 newOrder.lastMileAWB = shipmentDetails.awbNumber;
-
-
-    // Save order with unified shipment details
-    await newOrder.save();
+await newOrder.save();
 
      const merchantOrderId = await generateMerchantOrderId();
 

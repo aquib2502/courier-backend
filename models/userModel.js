@@ -42,7 +42,11 @@ const userSchema = new mongoose.Schema({
   usedCredit: { type: Number, default: 0 },      // Credit used so far
   creditResetDate: { type: Date } ,
 
-    discountRate: { type: Number, default: 0 }, // in percentage
+    packageDiscounts: {
+  type: Map,
+  of: Number,
+  default: {}
+},
     // Approval flow
     isApproved: { type: Boolean, default: false },
 }, { timestamps: true });

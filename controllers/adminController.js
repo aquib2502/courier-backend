@@ -77,7 +77,24 @@ const getUsersWithOrders = async (req, res) => {
     const usersWithOrderCount = await Promise.all(
       users.map(async (user) => {
         const orderCount = await Order.countDocuments({ user: user._id });
-        return { ...user.toObject(), totalOrders: orderCount };
+
+        // Convert packageDiscounts Map -> plain object
+        let packageDiscounts = user.packageDiscounts;
+        if (packageDiscounts instanceof Map) {
+          packageDiscounts = Object.fromEntries(packageDiscounts);
+        } else if (
+          typeof packageDiscounts !== "object" ||
+          Array.isArray(packageDiscounts) ||
+          !packageDiscounts
+        ) {
+          packageDiscounts = {};
+        }
+
+        return { 
+          ...user.toObject(), 
+          packageDiscounts, 
+          totalOrders: orderCount 
+        };
       })
     );
 
@@ -92,6 +109,7 @@ const getUsersWithOrders = async (req, res) => {
     });
   }
 };
+
 
 const editUserKYCStatus = async (req, res) => {
   try {

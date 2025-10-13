@@ -37,7 +37,7 @@
           ConsigneeAddressLine2: orderData.address2 || '',
           ConsigneeAddressLine3: '',
           ConsigneeCity: orderData.city,
-          ConsigneeZipCode: orderData.pincode,
+          ConsigneeZipCode:orderData.pincode.replace(/[^a-zA-Z0-9]/g, '').trim(),
           ConsigneeState: orderData.state,
           ConsigneePhoneNo: orderData.mobile,
 
