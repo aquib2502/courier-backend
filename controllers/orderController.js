@@ -143,6 +143,7 @@ await newOrder.save();
       amount: totalAmount,
       status: 'COMPLETED',
       type: 'order-booking',
+      paymentMethod: availableWallet >= totalAmount ? 'Wallet' : 'Credit',
       merchantOrderId
     });
     
