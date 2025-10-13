@@ -30,9 +30,8 @@
 
           GSTType: "GSTIN (Normal)",
           GSTIN: "27GWAPS7865D1Z1",
-
-          ConsigneeName: orderData.firstName,
-          ConsigneeContactPerson:" ",
+          ConsigneeName: orderData.firstName + ' ' + orderData.lastName,
+          ConsigneeContactPerson:"",
           ConsigneeAddressLine1: orderData.address1,
           ConsigneeAddressLine2: orderData.address2 || '',
           ConsigneeAddressLine3: '',
