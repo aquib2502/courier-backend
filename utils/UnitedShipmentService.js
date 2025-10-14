@@ -1,6 +1,10 @@
   import axios from 'axios';
 
   export const UnitedCallShipmentAPI = async (orderData) => {
+
+    const getFullName = () =>{
+      return `${orderData.firstName} ${orderData.lastName}`.trim();
+    }
     // Map your orderData to shipment payload
     const shipmentPayload = {
       ValidateAccount: [
@@ -30,8 +34,8 @@
 
           GSTType: "GSTIN (Normal)",
           GSTIN: "27GWAPS7865D1Z1",
-          ConsigneeName: orderData.firstName,
-          ConsigneeContactPerson:orderData.lastName,
+          ConsigneeName: getFullName() || orderData.firstName,
+          ConsigneeContactPerson:' ',
           ConsigneeAddressLine1: orderData.address1,
           ConsigneeAddressLine2: orderData.address2 || '',
           ConsigneeAddressLine3: '',
