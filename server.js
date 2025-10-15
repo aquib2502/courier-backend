@@ -37,7 +37,7 @@ const allowedOrigins = [
   'http://localhost:3001',
   'https://thetraceexpress.com',
   'https://admin.thetraceexpress.com',
-  'https://www.tracking.thetraceexpress.com/'
+  'https://www.tracking.thetraceexpress.com/',
   'https://tracking.thetraceexpress.com/'
 ];
 
