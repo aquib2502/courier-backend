@@ -22,10 +22,12 @@
     "i18n-iso-countries": "^7.14.0",
     "iso-3166-1": "^2.1.1",
     "jsonwebtoken": "^9.0.2",
+    "moment": "^2.30.1",
     "mongoose": "^8.13.1",
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
     "nodemon": "^3.1.10",
+    "pdfkit": "^0.17.2",
     "pg-sdk-node": "https://phonepe.mycloudrepo.io/public/repositories/phonepe-pg-sdk-node/releases/v2/phonepe-pg-sdk-node.tgz",
     "socket.io": "^4.8.1",
     "world-countries": "^5.1.0"

@@ -4,6 +4,10 @@ import Order from "../models/orderModel.js";
 import bcrypt from 'bcryptjs';
 import mongoose from "mongoose";
 import Transaction from "../models/transactionModel.js";
+import PDFDocument from "pdfkit";
+import moment from "moment";
+import Invoice from "../models/invoiceModel.js";
+
 
 const registerUser = async (req, res) => {
   try {
@@ -338,4 +342,274 @@ const fetchUserTransaction = async (req, res) => {
 };
 
 
-export {registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress, getOrderCountForUser, refreshToken, fetchUserTransaction};
+// ✅ Convert number to words
+function numberToWords(num) {
+  const a = [
+    "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+    "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen",
+    "Sixteen", "Seventeen", "Eighteen", "Nineteen"
+  ];
+  const b = [
+    "", "", "Twenty", "Thirty", "Forty", "Fifty",
+    "Sixty", "Seventy", "Eighty", "Ninety"
+  ];
+
+  if ((num = num.toString()).length > 9) return "Overflow";
+  let n = ("000000000" + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+  if (!n) return "";
+  let str = "";
+  str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + " " + a[n[1][1]]) + " Crore " : "";
+  str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + " " + a[n[2][1]]) + " Lakh " : "";
+  str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + " " + a[n[3][1]]) + " Thousand " : "";
+  str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + " " + a[n[4][1]]) + " Hundred " : "";
+  str += (n[5] != 0)
+    ? ((str != "") ? "and " : "") + (a[Number(n[5])] || b[n[5][0]] + " " + a[n[5][1]]) + " "
+    : "";
+  return str + "Only";
+}
+
+const generateInvoicePDF = (res, orders, invoiceData, targetDate) => {
+  
+
+  const doc = new PDFDocument({ margin: 40, size: "A4" });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", "inline; filename=final_bill.pdf");
+  doc.pipe(res);
+
+  const { invoiceNumber, subTotal, gst, totalAmount: totalWithGST } = invoiceData;
+
+  // 🔰 Emerald theme branding header
+  doc.rect(0, 0, doc.page.width, 60).fill("#059669");
+
+  // ✅ Company Name inside green bar (left)
+  doc
+    .fillColor("white")
+    .fontSize(20)
+    .font("Helvetica-Bold")
+    .text("The Trace Express", 40, 20);
+
+  // ✅ Subtitle (centered) inside the green bar
+  doc.fontSize(11).text("Monthly Billing Report", 0, 25, { align: "right" });
+
+  // ✅ Invoice number just below green bar
+  doc
+    .fillColor("black")
+    .fontSize(12)
+    .font("Helvetica-Bold")
+    .text(`Invoice No: ${invoiceNumber}`, 40, 75);
+
+  doc.moveDown(0.8);
+
+  // ✅ Date range info below invoice number
+  doc
+    .font("Helvetica")
+    .fontSize(11)
+    .text(
+      `Billing Period: ${targetDate
+        .clone()
+        .startOf("month")
+        .format("MMM DD, YYYY")} - ${targetDate
+        .clone()
+        .endOf("month")
+        .format("MMM DD, YYYY")}`,
+      40,
+      doc.y
+    );
+
+  doc.moveDown(0.3);
+
+  doc.text(`Generated on: ${moment().format("MMM DD, YYYY")}`, 40, doc.y);
+
+  doc.moveDown(1.2);
+  doc.moveDown(2);
+  doc.fillColor("black");
+
+  // Table headers
+  const tableTop = 150;
+  const headers = ["S.No", "Date", "AWB", "Customer", "Dest.", "Weight(kg)", "Amount (INR)"];
+  const colWidths = [40, 80, 100, 120, 50, 70, 90];
+  let x = 40;
+
+  headers.forEach((header, i) => {
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text(header, x, tableTop, { width: colWidths[i], align: "left" });
+    x += colWidths[i];
+  });
+
+  doc.moveTo(40, tableTop + 15).lineTo(550, tableTop + 15).stroke();
+
+  // Table rows
+  let y = tableTop + 25;
+  orders.forEach((order, i) => {
+    const date = moment(order.invoiceDate).format("YYYY-MM-DD");
+    const customer = `${order.firstName.trim()} ${order.lastName.trim()}`;
+    const dest =
+      order.country === "United States"
+        ? "US"
+        : order.country.slice(0, 2).toUpperCase();
+
+    const row = [
+      i + 1,
+      date,
+      order.lastMileAWB,
+      customer,
+      dest,
+      parseFloat(order.weight).toFixed(2),
+      order.totalAmount.toFixed(2),
+    ];
+
+    x = 40;
+    row.forEach((cell, j) => {
+      doc.font("Helvetica").fontSize(9).text(cell.toString(), x, y);
+      x += colWidths[j];
+    });
+
+    y += 20;
+    if (y > 720) {
+      doc.addPage();
+      y = 100;
+    }
+  });
+
+  // ✅ Calculation Summary Section
+  doc.moveDown(2);
+  y += 30;
+  doc.moveTo(40, y).lineTo(550, y).stroke();
+
+  y += 10;
+  doc.font("Helvetica-Bold").fontSize(10).text("Sub-Total:", 400, y);
+  doc.font("Helvetica").text(subTotal.toFixed(2), 480, y, {
+    width: 80,
+    align: "right",
+  });
+
+  y += 20;
+  doc.font("Helvetica-Bold").text("GST (18%):", 400, y);
+  doc.font("Helvetica").text(gst.toFixed(2), 480, y, {
+    width: 80,
+    align: "right",
+  });
+
+  y += 20;
+  doc.font("Helvetica-Bold").text("Bill Amount:", 400, y);
+  doc.font("Helvetica").text(totalWithGST.toFixed(2), 480, y, {
+    width: 80,
+    align: "right",
+  });
+
+  y += 40;
+  doc.font("Helvetica-Bold").text("Amount in Words:", 40, y);
+  doc
+    .font("Helvetica")
+    .text(numberToWords(Math.round(totalWithGST)), 180, y, { width: 350 });
+
+  // ✅ Footer
+  doc.moveDown(3);
+  doc
+    .fontSize(9)
+    .fillColor("gray")
+    .text(
+      "This is a computer generated report, you can download your tax invoice from the panel.",
+      40,
+      760,
+      { align: "center", width: 500 }
+    );
+
+  doc.end();
+};
+
+
+const getFinalBillPDF = async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.userId;
+    const { year, month } = req.query;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid user ID" });
+    }
+
+    // ✅ Determine billing month
+    let targetDate;
+    if (year && month) {
+      targetDate = moment(`${year}-${month}`, "YYYY-MM");
+    } else {
+      targetDate = moment();
+    }
+
+    const startOfMonth = targetDate.clone().startOf("month").toDate();
+    const endOfMonth = targetDate.clone().endOf("month").toDate();
+
+    // ✅ Check if invoice already exists for this user and billing period
+    const existingInvoice = await Invoice.findOne({
+      user: userId,
+      "billingPeriod.start": startOfMonth,
+      "billingPeriod.end": endOfMonth,
+    }).populate("orders");
+
+    if (existingInvoice) {
+      console.log("✅ Existing invoice found:", existingInvoice.invoiceNumber);
+      return generateInvoicePDF(res, existingInvoice.orders, existingInvoice, targetDate);
+    }
+
+    // ✅ If no invoice exists, fetch orders
+    const orders = await Order.find({
+      user: userId,
+      invoiceDate: { $gte: startOfMonth, $lte: endOfMonth },
+    })
+      .sort({ createdAt: -1 })
+      .select(
+        "firstName lastName lastMileAWB country weight totalAmount invoiceDate"
+      );
+
+    if (!orders || orders.length === 0) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No orders found for this month" });
+    }
+
+    // ✅ Financials
+    const totalWithGST = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const subTotal = totalWithGST / 1.18;
+    const gst = totalWithGST - subTotal;
+
+    // ✅ Generate unique invoice number
+    const randomPart = Math.floor(1000 + Math.random() * 9000);
+    const datePart = moment().format("MMDD");
+    const timePart = moment().format("HHmmss");
+    const invoiceNumber = `INVTTE${randomPart}${datePart}${timePart}`;
+
+    // ✅ Create new invoice record
+    const newInvoice = await Invoice.create({
+      invoiceNumber,
+      user: userId,
+      orders: orders.map((o) => o._id),
+      subTotal,
+      gst,
+      totalAmount: totalWithGST,
+      billingPeriod: {
+        start: startOfMonth,
+        end: endOfMonth,
+      },
+    });
+
+    // ✅ Generate PDF
+    return generateInvoicePDF(res, orders, newInvoice, targetDate);
+
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while generating PDF",
+      error: error.message,
+    });
+  }
+};
+
+
+
+
+export {registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress, getOrderCountForUser, refreshToken, fetchUserTransaction, getFinalBillPDF};
