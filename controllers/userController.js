@@ -426,7 +426,7 @@ const generateInvoicePDF = (res, orders, invoiceData, targetDate) => {
 
   // Table headers
   const tableTop = 150;
-  const headers = ["S.No", "Date", "AWB", "Customer", "Dest.", "Weight(kg)", "Amount (INR)"];
+  const headers = ["S.No", "Date", "InvNo", "Customer", "Dest.", "Weight(kg)", "Amount (INR)"];
   const colWidths = [40, 80, 100, 120, 50, 70, 90];
   let x = 40;
 
@@ -453,7 +453,7 @@ const generateInvoicePDF = (res, orders, invoiceData, targetDate) => {
     const row = [
       i + 1,
       date,
-      order.lastMileAWB,
+      order.invoiceNo,
       customer,
       dest,
       parseFloat(order.weight).toFixed(2),
