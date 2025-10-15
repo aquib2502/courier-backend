@@ -15,6 +15,7 @@ import http, { Server } from 'http';
 import notificationRoutes from './routes/notificationRoutes.js';
 import cookieParser from 'cookie-parser';
 import walletRoutes from './routes/walletRoutes.js'
+import trackingRoutes from './routes/trackingRoutes.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config();
@@ -73,6 +74,8 @@ app.use('/api/roles',roleRoutes )
 app.use('/api/rates',rateRoutes )
 
 app.use('/api/wallet', walletRoutes)
+
+app.use('/api/tracking', trackingRoutes )
 
 // API Routes
 app.use("/api/notifications", notificationRoutes);
