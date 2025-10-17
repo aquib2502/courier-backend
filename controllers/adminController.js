@@ -462,6 +462,44 @@ const getAllTransactions = async (req, res) => {
 };
 
 
+const updateOrderStatus = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ['Drafts', 'Ready', 'Packed', 'Manifested', 'Shipped', 'Delivered', 'Cancelled', 'Refunded', 'disputed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order status",
+      });
+    }
+    const updatedOrder = await Order.findByIdAndUpdate(
+      orderId,
+      { orderStatus: status },
+      { new: true }
+    );
+    if (!updatedOrder) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+    res.status(200).json({
+      success: true,
+      message: "Order status updated successfully",
+      data: updatedOrder,
+    });
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update order status",
+    });
+  }
+};
+
+
 
 
 export {
@@ -476,5 +514,6 @@ export {
   giveCredit,
   resetMonthlyCredit,
   updateCredit,
-  getAllTransactions
+  getAllTransactions,
+  updateOrderStatus
 };

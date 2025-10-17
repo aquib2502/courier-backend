@@ -2,7 +2,7 @@ import { Router } from "express";
 import nodeCron from "node-cron";
 const router = Router();    
 
-import { loginAdmin, getUsersWithOrders, editUserKYCStatus, updateUserDetails   , getClubbingDetails, updateManifestStatus, addNote, adminRaiseDispute, getNote, giveCredit, resetMonthlyCredit, updateCredit, getAllTransactions } from "../controllers/adminController.js";
+import { loginAdmin, getUsersWithOrders, editUserKYCStatus,updateOrderStatus, updateUserDetails   , getClubbingDetails, updateManifestStatus, addNote, adminRaiseDispute, getNote, giveCredit, resetMonthlyCredit, updateCredit, getAllTransactions } from "../controllers/adminController.js";
 
 router.post("/login", loginAdmin);
 
@@ -28,6 +28,7 @@ router.post('/reset-credit', async (req, res) => {
   }
 });
 
+router.put('/updateorderstatus/:orderId', updateOrderStatus )
 router.get('/getAllTransactions', getAllTransactions)
 
 router.post('/raise-dispute', adminRaiseDispute)
