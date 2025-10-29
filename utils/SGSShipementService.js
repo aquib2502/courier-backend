@@ -1,4 +1,6 @@
 import axios from "axios";
+import fs from "fs";
+import path from "path";
 
 // ✅ Hardcoded ISO2 → Country name mapping
 const COUNTRY_MAP = {
@@ -262,7 +264,7 @@ const SHIPGLOBAL_SERVICE_CODES = {
     "super saver": "sgdirectubiusps",
     "direct": "sgdirectparclluspsuniuni",
     "usps special": "sgdirectparcll",
-    "first class": "sgfcusps",
+    "first class": "Shipglobal First Class",
     "premium": "sgpremparcll",
     "express": "sgexpubiupsairjfk",
   },
@@ -344,8 +346,11 @@ export const ShipGlobalShipmentCallApi = async (orderData) => {
 };
 
  
+   // ===========================
+  // Build Payload
+  // ===========================
   const shipmentPayload = {
-    invoice_no: orderData.invoiceNo,
+    invoice_no: orderData.invoiceName,
     invoice_date: formatInvoiceDate(orderData.invoiceDate),
     order_reference: orderData.invoiceNo,
     service: serviceCode,
@@ -355,6 +360,8 @@ export const ShipGlobalShipmentCallApi = async (orderData) => {
     package_height: orderData.height || "10",
     currency_code: orderData.invoiceCurrency || "USD",
     csb5_status: 0,
+
+    // Customer details
     customer_shipping_firstname: orderData.firstName,
     customer_shipping_lastname: orderData.lastName,
     customer_shipping_mobile: orderData.mobile,
@@ -366,11 +373,15 @@ export const ShipGlobalShipmentCallApi = async (orderData) => {
     customer_shipping_country_code: countryCode,
     customer_shipping_state: orderData.state,
     ioss_number: "",
+
+    // Line items
     vendor_order_items: orderData.productItems.map((p) => ({
       vendor_order_item_name: p.productName,
       vendor_order_item_sku: "",
       vendor_order_item_quantity: p.productQuantity.toString(),
-      vendor_order_item_unit_price: parseFloat(p.productPrice).toFixed(2),
+      vendor_order_item_unit_price: (
+        parseFloat(p.productPrice) / 83
+      ).toFixed(2), // ✅ Convert INR → USD
       vendor_order_item_hsn: orderData.HSNCode || "",
       vendor_order_item_tax_rate: "0",
     })),
@@ -379,49 +390,53 @@ export const ShipGlobalShipmentCallApi = async (orderData) => {
   // ===== LOGGING =====
   console.log("==== ShipGlobal Payload ====");
   console.log(JSON.stringify(shipmentPayload, null, 2));
-  console.log("==== ShipGlobal Headers ====");
+
   const headers = {
     "Content-Type": "application/json",
     Accept: "application/json",
     Authorization:
       "Basic " + btoa(`${process.env.SG_USERNAME}:${process.env.SG_PASSWORD}`),
   };
-  console.log(headers);
 
+  // ===========================
+  // STEP 3️⃣ - Add Order
+  // ===========================
   try {
-    // STEP 3️⃣ - AddOrder API
     const addOrderResponse = await axios.post(
       "https://app.shipglobal.in/apiv1/order/add",
       shipmentPayload,
-      { headers }
+      { headers, validateStatus: () => true }
     );
 
     console.log("==== AddOrder Response ====");
     console.log(addOrderResponse.data);
 
-   if (!addOrderResponse?.data?.success || !addOrderResponse?.data?.trackingNo) {
-  // Extract ShipGlobal error array if available
-  const errorsArray = addOrderResponse?.data?.error || ["AddOrder failed Please try again in some time"];
+    const data = addOrderResponse.data || {};
+    const success = data.success === true || data.success === "true";
+    const trackingNo = data.order?.tracking || null;
 
-  return {
-    status: "failed",
-    code: addOrderResponse?.data?.code || null,
-    description: "ShipGlobal AddOrder API failed",
-    errors: errorsArray,           // <-- preserve the error array
-    forwarder: "ShipGlobal",
-  };
-}
+    if (!success || !trackingNo) {
+      const errorsArray =
+        data.error || ["AddOrder failed. Please try again later."];
+      return {
+        status: "failed",
+        code: data.code || null,
+        description: "ShipGlobal AddOrder API failed",
+        errors: errorsArray,
+        forwarder: "ShipGlobal",
+      };
+    }
 
-    const trackingNo = addOrderResponse.data.trackingNo;
-
+    // ===========================
     // STEP 4️⃣ - Tracking API
+    // ===========================
     console.log("==== Tracking API Payload ====");
     console.log({ tracking: trackingNo });
 
     const trackingResponse = await axios.post(
       "https://app.shipglobal.in/apiv1/tools/tracking",
       { tracking: trackingNo },
-      { headers }
+      { headers, validateStatus: () => true }
     );
 
     console.log("==== Tracking Response ====");
@@ -429,35 +444,71 @@ export const ShipGlobalShipmentCallApi = async (orderData) => {
 
     const awbInfo = trackingResponse?.data?.data?.awbInfo || {};
 
-    // STEP 5️⃣ - GetLabel API
+    // ===========================
+    // STEP 5️⃣ - Label API
+    // ===========================
     console.log("==== GetLabel API Payload ====");
     console.log({ tracking: trackingNo, label: true });
 
     const labelResponse = await axios.post(
       "https://app.shipglobal.in/apiv1/order/getLabel",
       { tracking: trackingNo, label: true },
-      { headers }
+      { headers, validateStatus: () => true }
     );
 
     console.log("==== Label Response ====");
     console.log(labelResponse.data);
 
-    const labelData = labelResponse?.data?.label || null;
+  const labelData = labelResponse?.data?.label || null;
 
-    // STEP 6️⃣ - Build unified shipment detail
+let labelUrl = null;
+
+if (labelData) {
+  // Decode and save the PDF to the labels folder
+  const buffer = Buffer.from(labelData, "base64");
+  const fileName = `${trackingNo}.pdf`;
+  const filePath = path.join(process.cwd(), "public", "labels", fileName);
+
+  fs.writeFileSync(filePath, buffer);
+
+  // Create the URL that points to the static route
+  labelUrl = `/label/${fileName}`;
+}
+
+
+
+
+    // ===========================
+    // STEP 6️⃣ - Final Shipment Object
+    // ===========================
     const shipmentDetails = {
-      status: addOrderResponse.data.success ? "success" : "failed",
-      code: addOrderResponse.data.code || null,
-      description: addOrderResponse.data.description || null,
-      trackingNumber: trackingNo,
-      awbNumber: awbInfo.awb_number || null,
+      status: success ? "success" : "failed",
+      code: data.code || null,
+      description: data.description || null,
+
+      // ✅ Prefer partner last-mile tracking (941… etc.)
+      trackingNumber:
+        awbInfo.partner_lastmile_awb ||
+        awbInfo.awb_number ||
+        trackingNo ||
+        null,
+      awbNumber:
+        awbInfo.partner_lastmile_awb ||
+        awbInfo.awb_number ||
+        trackingNo ||
+        null,
+      trackingNo2:
+        awbInfo.partner_lastmile_awb ||
+        awbInfo.awb_number ||
+        trackingNo ||
+        null,
+
       weight: shipmentPayload.package_weight || null,
       service: serviceCode,
-      pdf: labelData,
+      pdf: `https://69.62.73.169${labelUrl}`, // ✅ URL for frontend
       thirdPartyService: awbInfo.partner_lastmile_display || null,
       forwarder: "ShipGlobal",
       mpsFedex: awbInfo.partner_lastmile_tracking_url || null,
-      trackingNo2: awbInfo.awb_number || null,
     };
 
     console.log("==== Final Shipment Details ====");
@@ -475,6 +526,4 @@ export const ShipGlobalShipmentCallApi = async (orderData) => {
       forwarder: "ShipGlobal",
     };
   }
-
-
 };

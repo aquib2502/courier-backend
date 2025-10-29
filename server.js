@@ -102,6 +102,8 @@ app.get("/label/:trackingNo", (req, res) => {
   res.send(pdfBuffer);
 });
 
+app.use("/label", express.static(path.join(process.cwd(), "public/labels")));
+
 
 const PORT =process.env.PORT
 server.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
