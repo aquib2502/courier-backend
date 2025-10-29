@@ -82,25 +82,25 @@ app.use('/api/tracking', trackingRoutes )
 // API Routes
 app.use("/api/notifications", notificationRoutes);
 
-// Example Express endpoint
-app.get("/label/:trackingNo", (req, res) => {
-  const trackingNo = req.params.trackingNo;
+// // Example Express endpoint
+// app.get("/label/:trackingNo", (req, res) => {
+//   const trackingNo = req.params.trackingNo;
 
-  // Lookup your label for this tracking number (in-memory object or cache)
-  const labelBase64 = labelCache[trackingNo]; // e.g., { trackingNo: base64 }
+//   // Lookup your label for this tracking number (in-memory object or cache)
+//   const labelBase64 = labelCache[trackingNo]; // e.g., { trackingNo: base64 }
 
-  if (!labelBase64) return res.status(404).send("Label not found");
+//   if (!labelBase64) return res.status(404).send("Label not found");
 
-  const pdfBuffer = Buffer.from(labelBase64, "base64");
+//   const pdfBuffer = Buffer.from(labelBase64, "base64");
 
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader(
-    "Content-Disposition",
-    `inline; filename="${trackingNo}.pdf"`
-  );
+//   res.setHeader("Content-Type", "application/pdf");
+//   res.setHeader(
+//     "Content-Disposition",
+//     `inline; filename="${trackingNo}.pdf"`
+//   );
 
-  res.send(pdfBuffer);
-});
+//   res.send(pdfBuffer);
+// });
 
 
 console.log("🧾 Serving labels from:", path.join(process.cwd(), "public/labels"));

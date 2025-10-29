@@ -505,7 +505,7 @@ if (labelData) {
 
       weight: shipmentPayload.package_weight || null,
       service: serviceCode,
-      pdf: `https://69.62.73.169${labelUrl}`, // ✅ URL for frontend
+      pdf: `https://api.thetraceexpress.com/label/${trackingNo}.pdf`, // ✅ URL for frontend
       thirdPartyService: awbInfo.partner_lastmile_display || null,
       forwarder: "ShipGlobal",
       mpsFedex: awbInfo.partner_lastmile_tracking_url || null,
