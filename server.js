@@ -18,6 +18,8 @@ import walletRoutes from './routes/walletRoutes.js'
 import trackingRoutes from './routes/trackingRoutes.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+import cron from 'node-cron';
+import { cleanupOldLabels } from './utils/cleanupLabels.js';
 dotenv.config();
 
 connectDb();
@@ -82,25 +84,7 @@ app.use('/api/tracking', trackingRoutes )
 // API Routes
 app.use("/api/notifications", notificationRoutes);
 
-// // Example Express endpoint
-// app.get("/label/:trackingNo", (req, res) => {
-//   const trackingNo = req.params.trackingNo;
 
-//   // Lookup your label for this tracking number (in-memory object or cache)
-//   const labelBase64 = labelCache[trackingNo]; // e.g., { trackingNo: base64 }
-
-//   if (!labelBase64) return res.status(404).send("Label not found");
-
-//   const pdfBuffer = Buffer.from(labelBase64, "base64");
-
-//   res.setHeader("Content-Type", "application/pdf");
-//   res.setHeader(
-//     "Content-Disposition",
-//     `inline; filename="${trackingNo}.pdf"`
-//   );
-
-//   res.send(pdfBuffer);
-// });
 
 
 console.log("🧾 Serving labels from:", path.join(process.cwd(), "public/labels"));
@@ -110,6 +94,11 @@ app.use(
   express.static(path.join(__dirname, "public/labels"))
 );
 
+// Run every day at midnight
+cron.schedule("0 0 * * *", () => {
+  console.log("🕛 Running daily label cleanup...");
+  cleanupOldLabels();
+});
 
 
 const PORT =process.env.PORT
