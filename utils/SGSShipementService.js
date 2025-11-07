@@ -261,32 +261,32 @@ const COUNTRY_MAP = {
 // ===========================
 const SHIPGLOBAL_SERVICE_CODES = {
   US: {
-    "super saver": "sgdirectubiusps",
-    "direct": "sgdirectparclluspsuniuni",
-    "usps special": "sgdirectparcll",
+    "super saver": "Shipglobal Super Saver",
+    "direct": "Shipglobal Direct",
+    "usps special": "Shipglobal USPS Special",
     "first class": "Shipglobal First Class",
-    "premium": "sgpremparcll",
-    "express": "sgexpubiupsairjfk",
+    "premium": "Shipglobal Premium",
+    "express": "Shipglobal Express",
   },
   GB: {
-    "direct": "sgdirectroyalmailgb",
-    "first class": "sgfcroyalmailgb",
-    "premium": "sgpremuwcgb",
+    "direct": "Shipglobal Direct",
+    "first class": "Shipglobal First Class",
+    "premium": "Shipglobal Premium",
   },
   CA: {
-    "direct": "sgdirectcauniuni",
-    "first class": "sgfcuniunica",
-    "premium": "sgdirectcaups",
-    "special": "sgcaecomspecialuniuni",
+    "direct": "Shipglobal Direct",
+    "first class": "Shipglobal First Class",
+    "premium": "Shipglobal Premium",
+    "special": "Shipglobal Special",
   },
   AU: {
-    "direct": "sgdirectAUams",
+    "direct": "Shipglobal Direct",
   },
   EU: {
-    "direct": "sgdirecteudhl",
-    "direct yun": "sgdirecteuyun",
-    "premium dpd": "sgpremeudpd",
-    "worldwide": "sgworldwideeudhl",
+    "direct": "Shipglobal Direct",
+    "direct yun": "Shipglobal Direct Yun",
+    "premium dpd": "Shipglobal Premium DPD",
+    "worldwide": "Shipglobal Worldwide",
   },
 };
 
@@ -487,11 +487,7 @@ if (labelData) {
       description: data.description || null,
 
       // ✅ Prefer partner last-mile tracking (941… etc.)
-      trackingNumber:
-        awbInfo.partner_lastmile_awb ||
-        awbInfo.awb_number ||
-        trackingNo ||
-        null,
+      trackingNumber: null,
       awbNumber:
         awbInfo.partner_lastmile_awb ||
         awbInfo.awb_number ||
