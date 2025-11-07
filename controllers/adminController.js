@@ -207,12 +207,12 @@ const updateManifestStatus = async (req, res) => {
     }
 
     // If status is "picked_up", update all linked orders
-    if (status === "picked_up") {
-      await Order.updateMany(
-        { manifest: updatedManifest._id }, // still use real ObjectId for order linkage
-        { manifestStatus: "dispatched", orderStatus: "Shipped" }
-      );
-    }
+    // if (status === "picked_up") {
+    //   await Order.updateMany(
+    //     { manifest: updatedManifest._id }, // still use real ObjectId for order linkage
+    //     { manifestStatus: "dispatched", orderStatus: "Shipped" }
+    //   );
+    // }
 
     res.status(200).json({
       success: true,
@@ -495,6 +495,98 @@ const updateOrderStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to update order status",
+    });
+  }
+};
+
+export const inwardScan = async (req, res) => {
+  try {
+    const { orders, manifestId, clientId } = req.body;
+    /**
+     * orders = [
+     *   { orderId: "123", disputed: false },
+     *   { orderId: "456", disputed: true, type: "weight", description: "Expected 2g, found 3g" },
+     * ]
+     */
+
+    if (!orders || !Array.isArray(orders) || orders.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one order must be provided",
+      });
+    }
+
+    // Separate disputed and non-disputed orders
+    const disputedOrders = orders.filter((o) => o.disputed);
+    const normalOrders = orders.filter((o) => !o.disputed);
+
+    // Handle non-disputed orders → mark as shipped
+    if (normalOrders.length > 0) {
+      const normalIds = normalOrders.map((o) => o.orderId);
+
+     await Order.updateMany(
+  { _id: { $in: normalIds } },
+  { $set: { orderStatus: "Shipped", manifestStatus: "dispatched" } } // ✅ match enum
+);
+
+    }
+
+    // Handle disputed orders → raise disputes
+    if (disputedOrders.length > 0) {
+      for (const disputeOrder of disputedOrders) {
+        const { orderId, type, description } = disputeOrder;
+
+        // Raise notification (existing logic)
+        await raiseDispute({
+          orderIds: [orderId],
+          manifestId,
+          type,
+          description,
+          clientId,
+        });
+
+        // Create dispute document
+        const dispute = new Dispute({
+          orderIds: [orderId],
+          manifestId,
+          type,
+          description,
+          clientId,
+          clientResponse: "pending",
+          status: "open",
+        });
+        await dispute.save();
+
+        // Update the order to disputed
+        await Order.findByIdAndUpdate(orderId, {
+          $set: { orderStatus: "disputed", manifestStatus: "disputed" },
+        });
+      }
+
+      // Optionally mark manifest as disputed
+      if (manifestId) {
+        const manifest = await Manifest.findById(manifestId);
+        if (manifest) {
+          manifest.status = "disputed";
+          await manifest.save();
+        }
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Orders processed successfully",
+      summary: {
+        shipped: normalOrders.length,
+        disputed: disputedOrders.length,
+      },
+    });
+  } catch (error) {
+    console.error("Error during inward scan:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during inward scan",
+      error: error.message,
     });
   }
 };
