@@ -51,7 +51,10 @@ nodeCron.schedule('0 0 * * *', () => {
 // /api/orders/invoices
 router.get("/invoices", async (req, res) => {
   try {
-    const orders = await Order.find({}, { invoiceNo: 1, user: 1, manifest: 1 }).populate("user", "_id fullname");
+    const orders = await Order.find({}, { firstName: 1, lastName: 1, invoiceNo: 1, user: 1 })
+      .populate("manifest", "manifestId") // only manifestId from Manifest
+      .populate("user", "_id"); // only _id from User
+
     res.json({ success: true, data: orders });
   } catch (error) {
     console.error("Error fetching invoice list:", error);
