@@ -3,6 +3,7 @@ import nodeCron from "node-cron";
 const router = Router();    
 
 import { loginAdmin, getUsersWithOrders, editUserKYCStatus,updateOrderStatus, updateUserDetails   , getClubbingDetails, updateManifestStatus, addNote, adminRaiseDispute, getNote, giveCredit, resetMonthlyCredit, updateCredit, getAllTransactions, inwardScan } from "../controllers/adminController.js";
+import Order from "../models/orderModel.js";
 
 router.post("/login", loginAdmin);
 
@@ -46,5 +47,17 @@ nodeCron.schedule('0 0 * * *', () => {
   console.log('Running scheduled monthly credit reset...');
   resetMonthlyCredit();
 });
+
+// /api/orders/invoices
+router.get("/invoices", async (req, res) => {
+  try {
+    const orders = await Order.find({}, { invoiceNo: 1, user: 1, manifest: 1 }).populate("user", "_id fullname");
+    res.json({ success: true, data: orders });
+  } catch (error) {
+    console.error("Error fetching invoice list:", error);
+    res.status(500).json({ success: false, message: "Server error fetching invoices" });
+  }
+});
+
 
 export default router;
