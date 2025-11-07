@@ -40,7 +40,8 @@ const allowedOrigins = [
   'https://thetraceexpress.com',
   'https://admin.thetraceexpress.com',
   'https://www.tracking.thetraceexpress.com',
-  'https://tracking.thetraceexpress.com'
+  'https://tracking.thetraceexpress.com',
+  'https://4563h03s-3000.inc1.devtunnels.ms/'
 ];
 
 app.use(cors({
