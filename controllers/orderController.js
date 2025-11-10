@@ -89,7 +89,11 @@ let shipmentDetails = {
   thirdPartyService: null
 };
 
-if (shippingPartner.name.includes('Self')) {
+if (shippingPartner.name.includes('QuickExpress')) {
+    // No API call — just save the order directly
+    console.log("QuickExpress detected — skipping shipment API call.");
+} 
+else if (shippingPartner.name.includes('Self')) {
     // United API call
     const shipmentData = await UnitedCallShipmentAPI(newOrder);
     console.log("United API Response:", shipmentData);
@@ -108,28 +112,28 @@ if (shippingPartner.name.includes('Self')) {
         console.error("No shipment details available from United API");
         throw new Error('No shipment details available');
     }
-} else {
+} 
+else {
     // ShipGlobal API
-    shipmentDetails = await ShipGlobalShipmentCallApi(newOrder);  // update outer variable
-    
+    shipmentDetails = await ShipGlobalShipmentCallApi(newOrder);  
 
- if (shipmentDetails.status === "failed") {
-    console.error("ShipGlobal API Error:", shipmentDetails); // full logging
+    if (shipmentDetails.status === "failed") {
+        console.error("ShipGlobal API Error:", shipmentDetails); 
 
-    // Check if API returned an error array
-    const errorsArray = Array.isArray(shipmentDetails.errors) 
-      ? shipmentDetails.errors 
-      : shipmentDetails.description && Array.isArray(shipmentDetails.description)
-        ? shipmentDetails.description
-        : null;
+        const errorsArray = Array.isArray(shipmentDetails.errors) 
+            ? shipmentDetails.errors 
+            : shipmentDetails.description && Array.isArray(shipmentDetails.description)
+                ? shipmentDetails.description
+                : null;
 
-    return res.status(400).json({
-      success: false,
-      message: errorsArray ? errorsArray.join(", ") : shipmentDetails.description || "Shipment failed",
-      errors: errorsArray,
-    });
-  }
+        return res.status(400).json({
+            success: false,
+            message: errorsArray ? errorsArray.join(", ") : shipmentDetails.description || "Shipment failed",
+            errors: errorsArray,
+        });
+    }
 }
+
 
 // Assign to order and save once
 newOrder.shipmentDetails = shipmentDetails;
@@ -159,6 +163,70 @@ await newOrder.save();
       walletBalance: userDoc.walletBalance,
       usedCredit: userDoc.usedCredit
     });
+
+// ===================================
+// BACKGROUND JOB: Delayed Tracking Update (ShipGlobal / others)
+// ===================================
+(async () => {
+  try {
+    const partnerName = newOrder.shippingPartner?.name || "";
+
+    // ✅ Run only if NOT Self and NOT QuickExpress
+    if (
+      partnerName.includes("Self") ||
+      partnerName.includes("QuickExpress")
+    ) {
+      console.log(`Skipping tracking update for ${partnerName}`);
+      return;
+    }
+
+    console.log(`⏳ Waiting 30s before tracking update for ${partnerName}...`);
+
+    // Wait for 30 seconds
+    await new Promise(resolve => setTimeout(resolve, 30_000));
+
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization:
+        "Basic " + btoa(`${process.env.SG_USERNAME}:${process.env.SG_PASSWORD}`),
+    };
+
+    // Call ShipGlobal tracking API (works for similar partners too)
+    const trackingRes = await axios.post(
+      "https://app.shipglobal.in/apiv1/tools/tracking",
+      { tracking: newOrder.shipmentDetails.trackingNo2 },
+      { headers, validateStatus: () => true }
+    );
+
+    console.log("📦 Tracking recheck response:", trackingRes.data);
+
+    // Extract only the partner_lastmile_awb
+    const updatedAwb =
+      trackingRes?.data?.data?.awbInfo?.partner_lastmile_awb || null;
+
+    if (updatedAwb) {
+      console.log(`✅ Got updated partner_lastmile_awb: ${updatedAwb}`);
+
+      // ✅ Only update shipmentDetails.trackingNumber
+      await Order.findByIdAndUpdate(
+        newOrder._id,
+        {
+          $set: {
+            "shipmentDetails.trackingNumber": updatedAwb,
+          },
+        },
+        { new: true }
+      );
+
+      console.log(`✅ Order ${newOrder._id} updated with trackingNumber: ${updatedAwb}`);
+    } else {
+      console.log(`⚠️ partner_lastmile_awb still missing after 30s for order ${newOrder._id}`);
+    }
+  } catch (error) {
+    console.error("❌ Background tracking update failed:", error.message);
+  }
+})();
 
   } catch (error) {
     console.error('Error creating order:', error);
