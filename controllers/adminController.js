@@ -114,11 +114,16 @@ const getUsersWithOrders = async (req, res) => {
 const editUserKYCStatus = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { kycStatus } = req.body;
+    const { kycStatus, kycRejectReason } = req.body;
 
     // Validate kycStatus
     if (!["pending", "approved", "rejected"].includes(kycStatus)) {
       return res.status(400).json({ message: "Invalid KYC status" });
+    }
+
+    // If rejected, ensure kycRejectReason is provided
+    if (kycStatus === "rejected" && (!kycRejectReason || kycRejectReason.trim() === "")) {
+      return res.status(400).json({ message: "KYC reject reason is required when status is rejected" });
     }
 
     const user = await User.findById(userId);
@@ -127,6 +132,14 @@ const editUserKYCStatus = async (req, res) => {
     }
 
     user.kycStatus = kycStatus;
+
+    if (kycStatus === "rejected") {
+      user.kycRejectReason = kycRejectReason;
+    } else {
+      // Clear the reject reason if not rejected
+      user.kycRejectReason = undefined;
+    }
+
     await user.save();
 
     res.status(200).json({ message: "KYC status updated successfully", user });
