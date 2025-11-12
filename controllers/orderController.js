@@ -306,7 +306,8 @@ const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find()
       .populate('user', 'fullname mobile')          // Populate user details
-      .populate('manifest', 'manifestId status');   // Populate manifest details
+      .populate('manifest', 'manifestId status')
+      .sort({ createdAt: -1 }); // latest first
 
     res.status(200).json({
       success: true,
