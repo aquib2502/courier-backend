@@ -140,9 +140,12 @@ res.cookie('refreshToken', refreshToken, {
         });
       }
   
-      // Fetch the orders by userId
-      const orders = await Order.find({ user }).populate('user', 'fullname email');  // Populate user details if needed
-  
+     // Fetch and sort orders by newest first
+    const orders = await Order.find({ user })
+      .populate('user', 'fullname email')
+      .sort({ createdAt: -1 }); // latest first
+
+      
       if (orders.length === 0) {
         return res.status(404).json({
           success: false,
