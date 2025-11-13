@@ -17,6 +17,7 @@ const generateMerchantOrderId = () => {
 };
 
 const createOrder = async (req, res) => {
+  //#region Create Order
   try {
     console.log('Request Body:', req.body);
 
@@ -233,6 +234,8 @@ await newOrder.save();
     res.status(500).json({ success: false, message: 'Something went wrong, please try again later.' });
   }
 };
+
+//#endregion
 
 
 
@@ -522,4 +525,37 @@ const updateDisputeStatus = async (req, res) => {
   }
 };
 
-export { createOrder, updateOrderStatus,updateDisputeStatus, getTotalOrderCount, getAllOrders, clubOrders, getDisputedOrders };
+const getOrderDetails = async (req, res) => {
+  const { orderId } = req.params;
+
+  try {
+    // Fetch only selected fields from the Order collection
+    const order = await Order.findById(orderId).select(
+      'firstName lastName pickupAddress address1 address2 state country pincode invoiceName totalAmount shipmentType shippingPartner weight length width height invoiceNo invoiceCurrency invoiceDate productItems'
+    );
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found',
+      });
+    }
+
+    // Return only the selected order fields
+    return res.status(200).json({
+      success: true,
+      data: order,
+    });
+
+  } catch (error) {
+    console.error('Error fetching order details:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while fetching order details',
+      error: error.message,
+    });
+  }
+};
+
+
+export { createOrder, updateOrderStatus,updateDisputeStatus, getTotalOrderCount, getAllOrders, clubOrders, getDisputedOrders, getOrderDetails };
