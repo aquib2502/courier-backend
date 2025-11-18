@@ -101,45 +101,44 @@ export const UnitedCallShipmentAPI = async (orderData) => {
     ]
   };
 
-  // ============================
-  // 🟦 Retry Wrapper (max 3 attempts)
-  // ============================
-  async function attemptApiCall(attempt = 1) {
-    try {
-      const response = await axios.post(
-        "http://198.38.81.111:9002/api/Shipping/AddShipment",
-        shipmentPayload
-      );
+// ============================
+// 🟦 Retry Wrapper (max 3 attempts)
+// ============================
+async function attemptApiCall(attempt = 1) {
+  try {
+    const response = await axios.post(
+      "http://198.38.81.111:9002/api/Shipping/AddShipment",
+      shipmentPayload
+    );
 
-      const data = response.data?.[0];
+    const data = response.data?.[0];
 
-      if (!data || !data?.UnitedShipmentDetails) {
-        throw new Error("❌ No shipment details returned");
-      }
-
-      return data; // Success
-    } catch (error) {
-      console.error(`Attempt ${attempt} failed:`, error.message);
-
-      if (attempt >= 3) {
-        throw new Error("❌ Shipment API failed after 3 retry attempts");
-      }
-
-      // Wait before retry (exponential backoff)
-      const delay = 500 * Math.pow(2, attempt - 1);
-      await new Promise((res) => setTimeout(res, delay));
-
-      try {
-        return await attemptApiCall();
-      } catch (err) {
-        console.error("Final shipment error:", err.message);
-        throw err;
-      }
-
+    if (!data || !data?.UnitedShipmentDetails) {
+      throw new Error("❌ No shipment details returned");
     }
-  }
 
-  // Execute with retry
-  return await attemptApiCall();
+    return data; // Success
+  } catch (error) {
+    console.error(`Attempt ${attempt} failed:`, error.message);
+
+    if (attempt >= 3) {
+      throw new Error("❌ Shipment API failed after 3 retry attempts");
+    }
+
+    // Wait before retry (exponential backoff)
+    const delay = 500 * Math.pow(2, attempt);
+    await new Promise((res) => setTimeout(res, delay));
+
+    // IMPORTANT: pass the next attempt value
+    return attemptApiCall(attempt + 1);
+  }
+}
+
+// Execute with retry
+return await attemptApiCall();
+
+
+  
+
 };
 
