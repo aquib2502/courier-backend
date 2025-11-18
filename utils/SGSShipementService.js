@@ -260,6 +260,7 @@ const COUNTRY_MAP = {
 // ShipGlobal service codes
 // ===========================
 const SHIPGLOBAL_SERVICE_CODES = {
+  // United States
   US: {
     "super saver": "Shipglobal Super Saver",
     "direct": "Shipglobal Direct",
@@ -268,27 +269,86 @@ const SHIPGLOBAL_SERVICE_CODES = {
     "premium": "Shipglobal Premium",
     "express": "Shipglobal Express",
   },
+
+  // United Kingdom
   GB: {
     "direct": "Shipglobal Direct",
     "first class": "Shipglobal First Class",
     "premium": "Shipglobal Premium",
   },
+
+  // Canada
   CA: {
     "direct": "Shipglobal Direct",
     "first class": "Shipglobal First Class",
     "premium": "Shipglobal Premium",
     "special": "Shipglobal Special",
   },
+
+  // Australia
   AU: {
     "direct": "Shipglobal Direct",
   },
-  EU: {
+
+  // ===========================
+  // EUROPEAN COUNTRIES (All mapped to same EU service block)
+  // ===========================
+
+  AT: euServices(), // Austria
+  BE: euServices(), // Belgium
+  BG: euServices(), // Bulgaria
+  HR: euServices(), // Croatia
+  CY: euServices(), // Cyprus
+  CZ: euServices(), // Czech Republic
+  DK: euServices(), // Denmark
+  EE: euServices(), // Estonia
+  FI: euServices(), // Finland
+  FR: euServices(), // France
+  DE: euServices(), // Germany
+  GR: euServices(), // Greece
+  HU: euServices(), // Hungary
+  IE: euServices(), // Ireland
+  IT: euServices(), // Italy
+  LV: euServices(), // Latvia
+  LT: euServices(), // Lithuania
+  LU: euServices(), // Luxembourg
+  MT: euServices(), // Malta
+  NL: euServices(), // Netherlands
+  PL: euServices(), // Poland
+  PT: euServices(), // Portugal
+  RO: euServices(), // Romania
+  SK: euServices(), // Slovakia
+  SI: euServices(), // Slovenia
+  ES: euServices(), // Spain
+  SE: euServices(), // Sweden
+
+  // Optional (Non-EU Europe — same behavior if needed)
+  NO: euServices(), // Norway
+  CH: euServices(), // Switzerland
+  IS: euServices(), // Iceland
+  LI: euServices(), // Liechtenstein
+  MC: euServices(), // Monaco
+  SM: euServices(), // San Marino
+  AD: euServices(), // Andorra
+  VA: euServices(), // Vatican City
+  ME: euServices(), // Montenegro
+  RS: euServices(), // Serbia
+  AL: euServices(), // Albania
+  MK: euServices(), // North Macedonia
+  BA: euServices(), // Bosnia & Herzegovina
+  XK: euServices(), // Kosovo
+};
+
+// Reusable EU services function
+function euServices() {
+  return {
     "direct": "Shipglobal Direct",
     "direct yun": "Shipglobal Direct Yun",
     "premium dpd": "Shipglobal Premium DPD",
     "worldwide": "Shipglobal Worldwide",
-  },
-};
+  };
+}
+
 
 // ===========================
 // Helper functions
