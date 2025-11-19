@@ -346,7 +346,7 @@ function euServices() {
     "direct yun": "Shipglobal Direct Yun",
     "premium dpd": "Shipglobal Premium DPD",
     "worldwide": "Shipglobal Worldwide",
-  };
+  };  
 }
 
 
@@ -370,7 +370,7 @@ function getShipGlobalServiceCode(countryCode, selectedService) {
   const matchedKey = Object.keys(serviceList).find((key) =>
     lowerService.includes(key)
   );
-  return matchedKey ? serviceList[matchedKey] : null;
+  return matchedKey ? serviceList[matchedKey] : "Shipglobal Worldwide";
 }
 
 // ===========================
@@ -383,10 +383,16 @@ export const ShipGlobalShipmentCallApi = async (orderData) => {
   const countryCode = getAlpha2CountryCode(orderData.country);
   if (!countryCode) throw new Error(`Country code not found for "${orderData.country}"`);
 
-  const serviceCode = getShipGlobalServiceCode(
-    countryCode,
-    orderData.shippingPartner?.name || orderData.selectedService
-  );
+ let serviceCode = getShipGlobalServiceCode(
+  countryCode,
+  orderData.shippingPartner?.name || orderData.selectedService
+);
+
+// ✨ Force Canada service
+if (countryCode === "CA") {
+  serviceCode = "Shipglobal First Class";
+}
+
   if (!serviceCode) {
     throw new Error(
       `No matching ShipGlobal service for "${orderData.shippingPartner?.name || orderData.selectedService}" in ${orderData.country}`
@@ -462,17 +468,35 @@ export const ShipGlobalShipmentCallApi = async (orderData) => {
   // STEP 3️⃣ - Add Order
   // ===========================
   try {
-    const addOrderResponse = await axios.post(
-      "https://app.shipglobal.in/apiv1/order/add",
-      shipmentPayload,
-      { headers, validateStatus: () => true }
-    );
+   // STEP 3️⃣ - Add Order
+let addOrderResponse = await axios.post(
+  "https://app.shipglobal.in/apiv1/order/add",
+  shipmentPayload,
+  { headers, validateStatus: () => true }
+);
 
-    console.log("==== AddOrder Response ====");
-    console.log(addOrderResponse.data);
+console.log("==== AddOrder Response ====");
+console.log(addOrderResponse.data);
 
-    const data = addOrderResponse.data || {};
-    const success = data.success === true || data.success === "true";
+let data = addOrderResponse.data || {};
+let success = data.success === true || data.success === "true";
+
+// 🚨 If failed and country is Canada, retry with Shipglobal Direct
+if (!success && countryCode === "CA") {
+  console.log("Retrying Canada order with 'Shipglobal Direct'...");
+
+  shipmentPayload.service = "Shipglobal Direct";
+
+  addOrderResponse = await axios.post(
+    "https://app.shipglobal.in/apiv1/order/add",
+    shipmentPayload,
+    { headers, validateStatus: () => true }
+  );
+
+  data = addOrderResponse.data || {};
+  success = data.success === true || data.success === "true";
+}
+
     const trackingNo = data.order?.tracking || null;
 
     if (!success || !trackingNo) {
