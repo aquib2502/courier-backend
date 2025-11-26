@@ -4,7 +4,18 @@ export const UnitedCallShipmentAPI = async (orderData) => {
 
   const getFullName = () => {
     return `${orderData.firstName} ${orderData.lastName}`.trim();
+
+
   }
+
+  const USD_RATE = 89; // 1 USD = 89 INR
+
+// sum of (only unit price converted to USD)
+const customsValueUSD = orderData.productItems.reduce(
+  (sum, p) => sum + (p.productPrice / USD_RATE),
+  0
+);
+
   // Map your orderData to shipment payload
   const shipmentPayload = {
     ValidateAccount: [
@@ -62,7 +73,7 @@ export const UnitedCallShipmentAPI = async (orderData) => {
           }
         ],
 
-        CustomsValue: orderData.productItems.reduce((sum, p) => sum + (p.productPrice * p.productQuantity), 0),
+       CustomsValue: Number(customsValueUSD.toFixed(2)),
         CustomsCurrencyCode: orderData.invoiceCurrency || 'USD',
         ShipmentContent: orderData.productItems.map(p => p.productName).join(', '),
 
@@ -72,7 +83,7 @@ export const UnitedCallShipmentAPI = async (orderData) => {
           HSNCode: orderData.HSNCode,
           Qty: p.productQuantity.toString(),
           Rate: p.productPrice.toFixed(2),
-          Amount: p.productPrice * p.productQuantity,
+          Amount: Number((p.productPrice / USD_RATE).toFixed(2)), // NOT multiplied by qty
           Unit: "PCS",
           ShipPieceIGST: "0",
           PieceWt: parseFloat(orderData.weight || 0.5)
