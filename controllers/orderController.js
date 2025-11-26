@@ -110,20 +110,19 @@ const createOrder = async (req, res) => {
       const shipmentData = await UnitedCallShipmentAPI(newOrder);
       console.log("United API Response:", shipmentData);
 
-      if (shipmentData.shipmentDetails?.length > 0) {
-        const details = shipmentData.shipmentDetails[0];
+   if (shipmentData.status !== "success") {
+  throw new Error(shipmentData.message || "Shipment failed");
+}
 
-        shipmentDetails = {
-          trackingNumber: details.TrackingNo,
-          awbNumber: details.AwbNo,
-          pdf: details.PDF,
-          weight: details.Weight,
-          service: details.Service,
-          thirdPartyService: details.ThirdPartyService,
-        };
-      } else {
-        throw new Error("No shipment details available from United API");
-      }
+shipmentDetails = {
+  trackingNumber: shipmentData.trackingNo,
+  awbNumber: shipmentData.awb,
+  pdf: shipmentData.labelPDF,
+  weight: shipmentData.weight,
+  service: shipmentData.service,
+  thirdPartyService: shipmentData.thirdParty,
+};
+
     } 
     else {
       // SHIPGLOBAL API
@@ -237,11 +236,13 @@ const createOrder = async (req, res) => {
     })();
 
   } catch (error) {
-    console.error("Error creating order:", error);
-    res.status(500).json({
-      success: false,
-      message: "Something went wrong, please try again later.",
-    });
+   console.error("Error creating order:", error.message);
+
+return res.status(400).json({
+  success: false,
+  message: error.message || "Shipment failed",
+});
+
   }
 };
 

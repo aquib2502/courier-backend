@@ -100,45 +100,70 @@ export const UnitedCallShipmentAPI = async (orderData) => {
       }
     ]
   };
-
-// ============================
-// 🟦 Retry Wrapper (max 3 attempts)
-// ============================
-async function attemptApiCall(attempt = 1) {
+  
+  async function attemptApiCall(attempt = 1) {
   try {
     const response = await axios.post(
       "http://198.38.81.111:9002/api/Shipping/AddShipment",
       shipmentPayload
     );
 
-    const data = response.data?.[0];
+    console.log("Shipment Payload", shipmentPayload)
 
-    if (!data || !data?.UnitedShipmentDetails) {
-      throw new Error("❌ No shipment details returned");
+    const data = response.data?.[0];
+    if (!data) throw new Error("❌ Invalid API response format");
+
+    const shipmentResp = data.ShipmentResponses?.[0];
+    if (!shipmentResp) throw new Error("❌ Missing ShipmentResponses from courier API");
+
+    // Extract fields returned by the API
+    const status = shipmentResp.Status?.toString().trim();
+    const code = shipmentResp.Code?.toString().trim();
+
+    // SUCCESS MATCH BASED ON YOUR JSON:  Status === "Success" AND Code === "100"
+    const isSuccess =
+      (status === "Success" || status?.toLowerCase() === "success") &&
+      (code === "100" || code === 100);
+
+    if (!isSuccess) {
+      throw new Error(
+        `❌ Shipment failed — Status: ${shipmentResp.Status} | Code: ${shipmentResp.Code} | Description: ${shipmentResp.Description}`
+      );
     }
 
-    return data; // Success
+    const shipmentDetails = data.shipmentDetails?.[0];
+    if (!shipmentDetails) throw new Error("❌ shipmentDetails missing in response");
+
+    // 🎉 SUCCESS → STOP RETRIES AND RETURN
+    return {
+      status: "success",
+      awb: shipmentDetails.AwbNo,
+      trackingNo: shipmentDetails.TrackingNo,
+      trackingAlt: shipmentDetails.TrackingNo2,
+      labelPDF: shipmentDetails.PDF,
+      service: shipmentDetails.Service,
+      weight: shipmentDetails.Weight,
+      courier: shipmentDetails.Forwarder,
+      thirdParty: shipmentDetails.ThirdPartyService,
+      raw: data
+    };
+
   } catch (error) {
-    console.error(`Attempt ${attempt} failed:`, error.message);
+    console.error(`Attempt ${attempt} failed →`, error.message);
 
     if (attempt >= 3) {
-      throw new Error("❌ Shipment API failed after 3 retry attempts");
+         throw new Error(error.message);
     }
 
-    // Wait before retry (exponential backoff)
+    // Exponential backoff wait
     const delay = 500 * Math.pow(2, attempt);
     await new Promise((res) => setTimeout(res, delay));
 
-    // IMPORTANT: pass the next attempt value
     return attemptApiCall(attempt + 1);
   }
 }
 
 // Execute with retry
 return await attemptApiCall();
-
-
-  
-
 };
 
