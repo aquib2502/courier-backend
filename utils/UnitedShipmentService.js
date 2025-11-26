@@ -44,8 +44,8 @@ export const UnitedCallShipmentAPI = async (orderData) => {
         ConsigneeState: orderData.state,
         ConsigneePhoneNo: orderData.mobile,
 
-        ServiceTypeCode: "E",
-        ServiceType: "ECONOMY",
+        ServiceTypeCode: "ST01",
+        ServiceType: "STDNE",
         NetworkCode: "USPS",
 
         GoodsDesc: 'NDox',
