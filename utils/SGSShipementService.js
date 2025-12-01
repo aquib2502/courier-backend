@@ -363,15 +363,30 @@ function getAlpha2CountryCode(countryName) {
 }
 
 function getShipGlobalServiceCode(countryCode, selectedService) {
-  const serviceList = SHIPGLOBAL_SERVICE_CODES[countryCode];
-  if (!serviceList) return null;
+  const lowerService = (selectedService || "").toLowerCase();
 
-  const lowerService = selectedService.toLowerCase();
+  // 🔥 Premium rule (only dpd)
+  if (lowerService.includes("premium dpd")) return "Shipglobal Premium";
+
+  // 🌍 Global fallback keywords
+  if (lowerService.includes("worldwide")) return "Shipglobal Worldwide";
+  if (lowerService.includes("direct")) return "Shipglobal Direct";
+  if (lowerService.includes("first class")) return "Shipglobal First Class";
+  if (lowerService.includes("express")) return "Shipglobal Express";
+  if (lowerService.includes("super saver")) return "Shipglobal Super Saver";
+  if (lowerService.includes("usps")) return "Shipglobal USPS Special";
+
+  // 🟡 Now check country-specific list (if exists)
+  const serviceList = SHIPGLOBAL_SERVICE_CODES[countryCode];
+  if (!serviceList) return "Shipglobal Worldwide";
+
   const matchedKey = Object.keys(serviceList).find((key) =>
     lowerService.includes(key)
   );
+
   return matchedKey ? serviceList[matchedKey] : "Shipglobal Worldwide";
 }
+
 
 // ===========================
 // Main ShipGlobal API Flow
