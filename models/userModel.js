@@ -28,8 +28,8 @@ const userSchema = new mongoose.Schema({
     // ✅ New fields
     aadharNumber: { type: String, required: true },
     panNumber: { type: String, required: true },
-    gstNumber: { type: String, required: true },
-    iecNumber: { type: String, required: true },
+    gstNumber: { type: String },
+    iecNumber: { type: String},
 
     // File upload paths
     aadharProof: { type: String },

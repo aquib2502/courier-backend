@@ -14,28 +14,29 @@ const registerUser = async (req, res) => {
     const { fullname, email, password, confirmPassword, aadharNumber, panNumber, gstNumber, iecNumber } = req.body;
 
     // 1. Basic validations
-    if (!fullname || !email || !password || !confirmPassword || !aadharNumber || !panNumber || !gstNumber || !iecNumber) {
-      return res.status(400).json({ message: "All fields are required" });
+    if (!fullname || !email || !password || !confirmPassword || !aadharNumber || !panNumber) {
+      return res.status(400).json({ message: "Fullname, email, password, aadhar and PAN are required" });
     }
 
     if (password !== confirmPassword) {
       return res.status(400).json({ message: "Passwords do not match" });
     }
 
-    // 2. File validation — ensure all proofs exist
-    if (
-      !req.files?.aadharProof?.[0] ||
-      !req.files?.panProof?.[0] ||
-      !req.files?.gstProof?.[0] ||
-      !req.files?.iecProof?.[0]
-    ) {
-      return res.status(400).json({ message: "All document proofs must be uploaded" });
+    // 2. Aadhar & PAN proofs mandatory
+    if (!req.files?.aadharProof?.[0] || !req.files?.panProof?.[0]) {
+      return res.status(400).json({ message: "Aadhar and PAN proofs are required" });
     }
 
-    // 3. Validate file types and sizes (extra safe)
+    // 3. File type & size validation — only validate if file exists
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
-    const proofs = [req.files.aadharProof[0], req.files.panProof[0], req.files.gstProof[0], req.files.iecProof[0]];
-    for (const proof of proofs) {
+    const allProofs = [
+      req.files.aadharProof?.[0],
+      req.files.panProof?.[0],
+      req.files.gstProof?.[0],
+      req.files.iecProof?.[0]
+    ].filter(Boolean); // removes null values
+
+    for (const proof of allProofs) {
       if (!allowedTypes.includes(proof.mimetype)) {
         return res.status(400).json({ message: "Please upload only JPG, PNG, or PDF files" });
       }
@@ -50,7 +51,7 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ message: "Email already in use" });
     }
 
-    // 5. Hash and save
+    // 5. Hash & save user
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({
       fullname,
@@ -62,8 +63,8 @@ const registerUser = async (req, res) => {
       iecNumber,
       aadharProof: req.files.aadharProof[0].filename,
       panProof: req.files.panProof[0].filename,
-      gstProof: req.files.gstProof[0].filename,
-      iecProof: req.files.iecProof[0].filename,
+      gstProof: req.files.gstProof?.[0]?.filename || null,
+      iecProof: req.files.iecProof?.[0]?.filename || null,
     });
 
     await user.save();
@@ -74,7 +75,6 @@ const registerUser = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-
 
 
 
