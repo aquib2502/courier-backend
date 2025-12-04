@@ -262,32 +262,32 @@ const COUNTRY_MAP = {
 const SHIPGLOBAL_SERVICE_CODES = {
   // United States
   US: {
-    "super saver": "Shipglobal Super Saver",
-    "direct": "Shipglobal Direct",
-    "usps special": "Shipglobal USPS Special",
-    "first class": "Shipglobal First Class",
-    "premium": "Shipglobal Premium",
-    "express": "Shipglobal Express",
+    "super saver": "ShipGlobal Super Saver",
+    "direct": "ShipGlobal Direct",
+    "usps special": "ShipGlobal USPS Special",
+    "first class": "ShipGlobal First Class",
+    "premium": "ShipGlobal Premium",
+    "express": "ShipGlobal Express",
   },
 
   // United Kingdom
   GB: {
-    "direct": "Shipglobal Direct",
-    "first class": "Shipglobal First Class",
-    "premium": "Shipglobal Premium",
+    "direct": "ShipGlobal Direct",
+    "first class": "ShipGlobal First Class",
+    "premium": "ShipGlobal Premium",
   },
 
   // Canada
   CA: {
-    "direct": "Shipglobal Direct",
-    "first class": "Shipglobal First Class",
-    "premium": "Shipglobal Premium",
-    "special": "Shipglobal Special",
+    "direct": "ShipGlobal Direct",
+    "first class": "ShipGlobal First Class",
+    "premium": "ShipGlobal Premium",
+    "special": "ShipGlobal Special",
   },
 
   // Australia
   AU: {
-    "direct": "Shipglobal Direct",
+    "direct": "ShipGlobal Direct",
   },
 
   // ===========================
@@ -342,10 +342,10 @@ const SHIPGLOBAL_SERVICE_CODES = {
 // Reusable EU services function
 function euServices() {
   return {
-    "direct": "Shipglobal Direct",
-    "direct yun": "Shipglobal Direct Yun",
-    "premium dpd": "Shipglobal Premium DPD",
-    "worldwide": "Shipglobal Worldwide",
+    "direct": "ShipGlobal Direct",
+    "direct yun": "ShipGlobal Direct Yun",
+    "premium dpd": "ShipGlobal Premium DPD",
+    "worldwide": "ShipGlobal Worldwide",
   };  
 }
 
@@ -366,25 +366,25 @@ function getShipGlobalServiceCode(countryCode, selectedService) {
   const lowerService = (selectedService || "").toLowerCase();
 
   // 🔥 Premium rule (only dpd)
-  if (lowerService.includes("premium dpd")) return "Shipglobal Premium";
+  if (lowerService.includes("premium dpd")) return "ShipGlobal Premium DPD";
 
   // 🌍 Global fallback keywords
-  if (lowerService.includes("worldwide")) return "Shipglobal Worldwide";
-  if (lowerService.includes("direct")) return "Shipglobal Direct";
-  if (lowerService.includes("first class")) return "Shipglobal First Class";
-  if (lowerService.includes("express")) return "Shipglobal Express";
-  if (lowerService.includes("super saver")) return "Shipglobal Super Saver";
-  if (lowerService.includes("usps")) return "Shipglobal USPS Special";
+  if (lowerService.includes("worldwide")) return "ShipGlobal Worldwide";
+  if (lowerService.includes("direct")) return "ShipGlobal Direct";
+  if (lowerService.includes("first class")) return "ShipGlobal First Class";
+  if (lowerService.includes("express")) return "ShipGlobal Express";
+  if (lowerService.includes("super saver")) return "ShipGlobal Super Saver";
+  if (lowerService.includes("usps")) return "ShipGlobal USPS Special";
 
   // 🟡 Now check country-specific list (if exists)
   const serviceList = SHIPGLOBAL_SERVICE_CODES[countryCode];
-  if (!serviceList) return "Shipglobal Worldwide";
+  if (!serviceList) return "ShipGlobal Worldwide";
 
   const matchedKey = Object.keys(serviceList).find((key) =>
     lowerService.includes(key)
   );
 
-  return matchedKey ? serviceList[matchedKey] : "Shipglobal Worldwide";
+  return matchedKey ? serviceList[matchedKey] : "ShipGlobal Worldwide";
 }
 
 
@@ -405,7 +405,7 @@ export const ShipGlobalShipmentCallApi = async (orderData) => {
 
 // ✨ Force Canada service
 if (countryCode === "CA") {
-  serviceCode = "Shipglobal First Class";
+  serviceCode = "ShipGlobal First Class";
 }
 
   if (!serviceCode) {
@@ -494,11 +494,11 @@ console.log(addOrderResponse.data);
 let data = addOrderResponse.data || {};
 let success = data.success === true || data.success === "true";
 
-// 🚨 If failed and country is Canada, retry with Shipglobal Direct
+// 🚨 If failed and country is Canada, retry with ShipGlobal Direct
 if (!success && countryCode === "CA") {
-  console.log("Retrying Canada order with 'Shipglobal Direct'...");
+  console.log("Retrying Canada order with 'ShipGlobal Direct'...");
 
-  shipmentPayload.service = "Shipglobal Direct";
+  shipmentPayload.service = "ShipGlobal Direct";
 
   addOrderResponse = await axios.post(
     "https://app.shipglobal.in/apiv1/order/add",
