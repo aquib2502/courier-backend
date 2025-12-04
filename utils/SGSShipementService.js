@@ -460,9 +460,7 @@ if (countryCode === "CA") {
       vendor_order_item_name: p.productName,
       vendor_order_item_sku: "",
       vendor_order_item_quantity: p.productQuantity.toString(),
-      vendor_order_item_unit_price: (
-        parseFloat(p.productPrice) / 83
-      ).toFixed(2), // ✅ Convert INR → USD
+      vendor_order_item_unit_price: p.productPrice.toString(),
       vendor_order_item_hsn: orderData.HSNCode || "",
       vendor_order_item_tax_rate: "0",
     })),
