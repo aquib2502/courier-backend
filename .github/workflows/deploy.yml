@@ -1,42 +1,44 @@
-name: Deploy Courier Backend
+name: Deploy Courier Backend (Docker Compose)
 
 on:
   push:
     branches:
-      - main  # Trigger deployment only when pushing to main branch
+      - main
 
 jobs:
   deploy:
-    name: Deploy to Production Server
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout repository code
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Deploy via SSH
-      - name: SSH and Deploy
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: 69.62.73.169
           username: deployer
-          key: ${{ secrets.SSH_PRIVATE_KEY }} # Use GitHub Secret for private key
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "🚀 Starting deployment..."
+            echo "🚀 Starting deploy for courier-backend..."
 
-            # Navigate to project directory
             cd /home/deployer/courier-backend
 
-            # Reset and pull the latest changes
+            echo "📥 Pulling latest code..."
             git reset --hard
             git pull origin main
 
-            # Install production dependencies
-            npm install --production
+            echo "🐳 Rebuilding docker image..."
+            cd /home/deployer
+            docker compose build courier-backend
 
-            # Restart PM2 process by name
-            pm2 restart courier-backend
-            pm2 save
+            echo "🔁 Restarting container..."
+            docker compose up -d courier-backend
 
-            echo "✅ Deployment completed!"
+            echo "🔗 Ensuring network connection to NPM..."
+            docker network connect nginx-proxy-manager_default courier-backend || true
+
+            echo "♻ Restarting NPM to refresh routing..."
+            docker restart nginx-proxy-manager-npm-1
+
+            echo "🎉 Deployment successful!"
