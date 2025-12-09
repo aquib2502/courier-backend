@@ -1,7 +1,9 @@
 import fs from "fs";
 import path from "path";
 
-const LABELS_DIR = path.join(process.cwd(), "public/labels");
+const LABELS_DIR = path.join(process.cwd(), "uploads/labels");
+
+
 const MAX_AGE_DAYS = 15;
 
 export function cleanupOldLabels() {

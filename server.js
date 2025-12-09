@@ -89,12 +89,15 @@ app.use("/api/notifications", notificationRoutes);
 
 
 
-console.log("🧾 Serving labels from:", path.join(process.cwd(), "public/labels"));
+console.log("🧾 Serving labels from:", path.join(process.cwd(), "uploads/labels"));
+
 
 app.use(
   "/label",
-  express.static(path.join(__dirname, "public/labels"))
+  express.static(path.join(__dirname, "uploads/labels"))
 );
+
+
 
 // Run every day at midnight
 cron.schedule("0 0 * * *", () => {

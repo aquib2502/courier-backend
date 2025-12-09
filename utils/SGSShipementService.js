@@ -578,7 +578,15 @@ if (labelData) {
   // Decode and save the PDF to the labels folder
   const buffer = Buffer.from(labelData, "base64");
   const fileName = `${trackingNo}.pdf`;
-  const filePath = path.join(process.cwd(), "public", "labels", fileName);
+  const labelsDir = path.join(process.cwd(), "uploads", "labels");
+
+// Ensure folder exists
+if (!fs.existsSync(labelsDir)) {
+  fs.mkdirSync(labelsDir, { recursive: true });
+}
+
+const filePath = path.join(labelsDir, fileName);
+
 
   fs.writeFileSync(filePath, buffer);
 
