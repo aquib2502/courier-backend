@@ -512,17 +512,31 @@ if (!success && countryCode === "CA") {
 
     const trackingNo = data.order?.tracking || null;
 
-    if (!success || !trackingNo) {
-      const errorsArray =
-        data.error || ["AddOrder failed. Please try again later."];
-      return {
-        status: "failed",
-        code: data.code || null,
-        description: "ShipGlobal AddOrder API failed",
-        errors: errorsArray,
-        forwarder: "ShipGlobal",
-      };
+   if (!success || !trackingNo) {
+  const errorsArray = data.error || [];
+
+  // Extract readable messages from objects:
+  const extractedErrors = errorsArray.map(err => {
+    if (typeof err === "string") return err;
+
+    if (typeof err === "object") {
+      // Return the first value from object
+      const firstKey = Object.keys(err)[0];
+      return err[firstKey];
     }
+
+    return "Unknown error occurred.";
+  });
+
+  return {
+    status: "failed",
+    code: data.code || null,
+    description: extractedErrors[0] || "AddOrder failed Please try again.",
+    errors: extractedErrors,
+    forwarder: "The Trace Express",
+  };
+}
+
 
     // ===========================
     // STEP 4️⃣ - Tracking API
