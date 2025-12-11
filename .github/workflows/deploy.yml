@@ -18,6 +18,7 @@ jobs:
         with:
           host: 69.62.73.169
           username: deployer
+          port: 2222
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             echo "========================================="
