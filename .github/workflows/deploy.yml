@@ -20,25 +20,45 @@ jobs:
           username: deployer
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "🚀 Starting deploy for courier-backend..."
+            echo "========================================="
+            echo "🚀 Starting Deployment: Courier Backend"
+            echo "========================================="
 
-            cd /home/deployer/courier-backend
+            BACKEND_DIR="/home/deployer/app/stack/courier-backend"
+            STACK_DIR="/home/deployer/app/stack"
+            SERVICE="courier-backend"
+            PROXY_NET="nginx-proxy-manager_default"
 
-            echo "📥 Pulling latest code..."
-            git reset --hard
-            git pull origin main
+            echo "📁 Moving to backend directory: $BACKEND_DIR"
+            cd $BACKEND_DIR || { echo "Backend directory missing"; exit 1; }
 
-            echo "🐳 Rebuilding docker image..."
-            cd /home/deployer
-            docker compose build courier-backend
+            echo "📥 Fetching and resetting to latest commit..."
+            git fetch --all
+            git reset --hard origin/main
 
-            echo "🔁 Restarting container..."
-            docker compose up -d courier-backend
+            echo "📦 Moving to Docker Compose directory: $STACK_DIR"
+            cd $STACK_DIR || { echo "Stack directory missing"; exit 1; }
 
-            echo "🔗 Ensuring network connection to NPM..."
-            docker network connect nginx-proxy-manager_default courier-backend || true
+            echo "⛔ Stopping running container (if any)..."
+            docker compose stop $SERVICE || true
 
-            echo "♻ Restarting NPM to refresh routing..."
-            docker restart nginx-proxy-manager-npm-1
+            echo "🧹 Removing old container..."
+            docker compose rm -f $SERVICE || true
 
-            echo "🎉 Deployment successful!"
+            echo "🐳 Building new Docker image for $SERVICE..."
+            docker compose build $SERVICE
+
+            echo "🔁 Starting updated container..."
+            docker compose up -d $SERVICE
+
+            echo "🔍 Checking reverse proxy network attachment..."
+            if docker network inspect $PROXY_NET | grep -q "$SERVICE"; then
+              echo "✔ $SERVICE is already connected to $PROXY_NET"
+            else
+              echo "🔗 Connecting $SERVICE to $PROXY_NET..."
+              docker network connect $PROXY_NET $SERVICE || echo "⚠ Could not connect (already attached or network issue)"
+            fi
+
+            echo "-----------------------------------------"
+            echo "🟢 Deployment Completed Successfully!"
+            echo "-----------------------------------------"
