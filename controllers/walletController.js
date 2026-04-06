@@ -1,4 +1,4 @@
-import { StandardCheckoutClient, Env,StandardCheckoutPayRequest } from "pg-sdk-node";
+import { StandardCheckoutClient, Env, StandardCheckoutPayRequest } from "@phonepe-pg/pg-sdk-node";
 import dotenv from 'dotenv'
 import Transaction from "../models/transactionModel.js";
 import User from "../models/userModel.js";
@@ -152,4 +152,4 @@ const checkStatus = async (req, res) => {
   }
 };
 
-export {rechargeWallet, checkStatus}
+export { rechargeWallet, checkStatus }

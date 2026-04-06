@@ -28,7 +28,7 @@
     "node-cron": "^4.2.1",
     "nodemon": "^3.1.10",
     "pdfkit": "^0.17.2",
-   "pg-sdk-node": "file:./vendor/phonepe-sdk.tgz",
+    "@phonepe-pg/pg-sdk-node": "^2.0.5",
     "socket.io": "^4.8.1",
     "world-countries": "^5.1.0"
   }
