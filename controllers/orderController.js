@@ -288,20 +288,46 @@ try {
 
 const getTotalOrderCount = async (req, res) => {
   try {
-    // Count all orders in the database (not user-specific)
-    const totalCount = await Order.countDocuments({});
-    
+    // Fetch all orders with populated user and manifest fields
+    const orders = await Order.find()
+      .populate('user', 'fullname mobile')
+      .populate('manifest', 'manifestId status')
+      .sort({ createdAt: -1 });
+
+    // Build a map of orderId -> clubbing info for quick lookup
+    // We fetch all clubbings that contain any of these order IDs
+    const orderIds = orders.map((o) => o._id);
+    const clubbings = await Clubbing.find({ clubbedOrders: { $in: orderIds } }).select(
+      'clubName clubbedOrders'
+    );
+
+    // Create a map: orderId (string) -> clubName
+    const orderClubMap = {};
+    for (const club of clubbings) {
+      for (const oid of club.clubbedOrders) {
+        orderClubMap[oid.toString()] = club.clubName;
+      }
+    }
+
+    // Attach clubbing info to each order
+    const ordersWithClubInfo = orders.map((order) => {
+      const plain = order.toObject();
+      const clubName = orderClubMap[order._id.toString()] || null;
+      return {
+        ...plain,
+        clubInfo: clubName ? { clubbed: true, clubName } : { clubbed: false, clubName: null },
+      };
+    });
+
     res.status(200).json({
       success: true,
-      data: {
-        totalCount: totalCount
-      }
+      data: ordersWithClubInfo,
     });
   } catch (error) {
     console.error('Error getting total order count:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get order count'
+      message: 'Failed to get order count',
     });
   }
 };
@@ -320,19 +346,44 @@ const generateSerialNumber = async () => {
 const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find()
-      .populate('user', 'fullname mobile')          // Populate user details
+      .populate('user', 'fullname mobile')
       .populate('manifest', 'manifestId status')
-      .sort({ createdAt: -1 }); // latest first
+      .sort({ createdAt: -1 });
+
+    // Build orderId -> clubName map from the Clubbing collection
+    const orderIds = orders.map((o) => o._id);
+    const clubbings = await Clubbing.find({ clubbedOrders: { $in: orderIds } }).select(
+      'clubName clubbedOrders'
+    );
+
+    const orderClubMap = {};
+    for (const club of clubbings) {
+      for (const oid of club.clubbedOrders) {
+        orderClubMap[oid.toString()] = club.clubName;
+      }
+    }
+
+    // Attach clubInfo to every order
+    const ordersWithClubInfo = orders.map((order) => {
+      const plain = order.toObject();
+      const clubName = orderClubMap[order._id.toString()] || null;
+      return {
+        ...plain,
+        clubInfo: clubName
+          ? { clubbed: true, clubName }
+          : { clubbed: false, clubName: null },
+      };
+    });
 
     res.status(200).json({
       success: true,
-      data: orders
+      data: ordersWithClubInfo,
     });
   } catch (error) {
     console.error('Error retrieving orders:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to retrieve orders'
+      message: 'Failed to retrieve orders',
     });
   }
 };
@@ -348,6 +399,41 @@ const clubOrders = async (req, res) => {
     }
     if (!Array.isArray(orderIds) || orderIds.length === 0) {
       return res.status(400).json({ success: false, message: 'orderIds must be a non-empty array' });
+    }
+
+    // =====================================================
+    // CHECK: Are any of these orders already clubbed?
+    // =====================================================
+    const existingClubbings = await Clubbing.find({
+      clubbedOrders: { $in: orderIds },
+    }).select('clubName clubbedOrders');
+
+    if (existingClubbings.length > 0) {
+      // Build a helpful error message listing which orders are already clubbed
+      const conflicts = [];
+      for (const club of existingClubbings) {
+        for (const oid of club.clubbedOrders) {
+          if (orderIds.map(String).includes(oid.toString())) {
+            conflicts.push({ orderId: oid.toString(), clubName: club.clubName });
+          }
+        }
+      }
+
+      // Fetch invoiceNos for better readability in the error
+      const conflictOrderIds = conflicts.map((c) => c.orderId);
+      const conflictOrders = await Order.find({ _id: { $in: conflictOrderIds } }).select('invoiceNo');
+      const invoiceMap = {};
+      for (const o of conflictOrders) invoiceMap[o._id.toString()] = o.invoiceNo;
+
+      const conflictMessages = conflicts.map(
+        (c) => `${invoiceMap[c.orderId] || c.orderId} is already clubbed in "${c.clubName}"`
+      );
+
+      return res.status(400).json({
+        success: false,
+        message: `Some orders are already clubbed: ${conflictMessages.join('; ')}`,
+        conflicts,
+      });
     }
 
     // Fetch users with fullname and email
@@ -570,4 +656,4 @@ const getOrderDetails = async (req, res) => {
 };
 
 
-export { createOrder, updateOrderStatus,updateDisputeStatus, getTotalOrderCount, getAllOrders, clubOrders, getDisputedOrders, getOrderDetails };
+export { createOrder, updateOrderStatus, updateDisputeStatus, getTotalOrderCount, getAllOrders, clubOrders, getDisputedOrders, getOrderDetails };
