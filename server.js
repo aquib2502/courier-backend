@@ -98,6 +98,19 @@ app.use(
 );
 
 
+// Express example — /api/admin/proxy-pdf?url=<encoded_url>
+app.get('/api/admin/proxy-pdf', async (req, res) => {
+  const { url } = req.query;
+  try {
+    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    res.set('Content-Type', 'application/pdf');
+    res.set('Access-Control-Allow-Origin', '*');
+    res.send(response.data);
+  } catch (err) {
+    res.status(500).send('Failed to fetch PDF');
+  }
+});
+
 
 // Run every day at midnight
 cron.schedule("0 0 * * *", () => {

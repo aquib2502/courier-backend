@@ -90,10 +90,10 @@ const getUsersWithOrders = async (req, res) => {
           packageDiscounts = {};
         }
 
-        return { 
-          ...user.toObject(), 
-          packageDiscounts, 
-          totalOrders: orderCount 
+        return {
+          ...user.toObject(),
+          packageDiscounts,
+          totalOrders: orderCount
         };
       })
     );
@@ -175,9 +175,11 @@ const updateUserDetails = async (req, res) => {
 
 const getClubbingDetails = async (req, res) => {
   try {
-    const clubbingDetails = await Clubbing.find()
-      .populate("userIds", "fullname email") // Populate user details
-      .populate("clubbedOrders"); // Populate order details
+    const clubbingDetails = await Clubbing.find({})
+      .sort({ createdAt: -1 }) // 🔥 newest first
+      .populate("userIds", "fullname email")
+      .populate("clubbedOrders");
+
     res.status(200).json({
       success: true,
       message: "Clubbing details fetched successfully",
@@ -537,10 +539,10 @@ export const inwardScan = async (req, res) => {
     if (normalOrders.length > 0) {
       const normalIds = normalOrders.map((o) => o.orderId);
 
-     await Order.updateMany(
-  { _id: { $in: normalIds } },
-  { $set: { orderStatus: "Shipped", manifestStatus: "dispatched" } } // ✅ match enum
-);
+      await Order.updateMany(
+        { _id: { $in: normalIds } },
+        { $set: { orderStatus: "Shipped", manifestStatus: "dispatched" } } // ✅ match enum
+      );
 
     }
 
