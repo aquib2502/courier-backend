@@ -265,7 +265,7 @@ const SHIPGLOBAL_SERVICE_CODES = {
     "super saver": "ShipGlobal Super Saver",
     "direct": "ShipGlobal Direct",
     "usps special": "ShipGlobal USPS Special",
-    "first class": "ShipGlobal First Class",
+    "first class": "Sgfcusps",
     "premium": "ShipGlobal Premium",
     "express": "ShipGlobal Express",
   },
