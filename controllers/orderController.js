@@ -7,6 +7,7 @@ import { UnitedCallShipmentAPI } from '../utils/UnitedShipmentService.js';
 import Transaction from '../models/transactionModel.js';
 import { ShipGlobalShipmentCallApi } from '../utils/SGSShipementService.js';
 import axios from 'axios';
+import { bookDraftOrderService, createOrderService } from '../services/orderService.js';
 
 
 const generateMerchantOrderId = () => {
@@ -18,238 +19,282 @@ const generateMerchantOrderId = () => {
 
 
 
+// const createOrder = async (req, res) => {
+// //#region - createOrder
+//   try {
+//     console.log("Request Body:", req.body);
+
+//     const { user, totalAmount, shippingPartner, ...orderData } = req.body;
+
+//     if (!user) {
+//       return res.status(400).json({ success: false, message: "User ID is required" });
+//     }
+
+//     const userDoc = await User.findById(user);
+//     if (!userDoc) {
+//       return res.status(404).json({ success: false, message: "User not found" });
+//     }
+
+//     if (userDoc.kycStatus !== "approved") {
+//       return res.status(400).json({ success: false, message: "User KYC is not approved" });
+//     }
+
+//     // =====================================================
+//     // 1️⃣ VALIDATE WALLET & CREDIT BEFORE ANY ORDER CREATION
+//     // =====================================================
+//     const availableWallet = userDoc.walletBalance;
+//     const availableCredit = userDoc.hasCredit ? userDoc.creditLimit - userDoc.usedCredit : 0;
+//     const totalAvailable = availableWallet + availableCredit;
+
+//     if (totalAvailable < totalAmount) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Insufficient wallet balance or credit limit",
+//       });
+//     }
+
+//     // Deduct wallet first → then credit
+//     let remainingAmount = totalAmount;
+
+//     if (availableWallet >= remainingAmount) {
+//       userDoc.walletBalance -= remainingAmount;
+//       remainingAmount = 0;
+//     } else {
+//       remainingAmount -= availableWallet;
+//       userDoc.walletBalance = 0;
+//     }
+
+//     if (remainingAmount > 0) {
+//       userDoc.usedCredit = (userDoc.usedCredit || 0) + remainingAmount;
+//     }
+
+//     await userDoc.save(); // Save deducted balance FIRST
+
+//     // =====================================================
+//     // 2️⃣ CREATE ORDER
+//     // =====================================================
+//     const serialNumber = await generateSerialNumber();
+
+//     const newOrder = new Order({
+//       ...orderData,
+//       user,
+//       totalAmount,
+//       invoiceNo: serialNumber,
+//       shippingPartner: {
+//         name: shippingPartner.name,
+//         type: shippingPartner.type,
+//       },
+//     });
+
+//     // =====================================================
+//     // 3️⃣ PREPARE SHIPMENT DETAILS STRUCTURE
+//     // =====================================================
+//     let shipmentDetails = {
+//       trackingNumber: null,
+//       awbNumber: null,
+//       pdf: null,
+//       weight: null,
+//       service: null,
+//       thirdPartyService: null,
+//     };
+
+//     // =====================================================
+//     // 4️⃣ DETERMINE SHIPPING PARTNER
+//     // =====================================================
+
+//     if (shippingPartner.name.includes("QuickExpress")) {
+//       // No API call
+//       console.log("QuickExpress detected — skipping shipment API call.");
+//     } 
+//     else if (shippingPartner.name.includes("Self") || shippingPartner.name.includes("Basic")) {
+//       // UNITED API
+//       const shipmentData = await UnitedCallShipmentAPI(newOrder);
+//       console.log("United API Response:", shipmentData);
+
+//    if (shipmentData.status !== "success") {
+//   throw new Error(shipmentData.message || "Shipment failed");
+// }
+
+// shipmentDetails = {
+//   trackingNumber: shipmentData.trackingNo,
+//   awbNumber: shipmentData.awb,
+//   pdf: shipmentData.labelPDF,
+//   weight: shipmentData.weight,
+//   service: shipmentData.service,
+//   thirdPartyService: shipmentData.thirdParty,
+// };
+
+//     } 
+//     else {
+//       // SHIPGLOBAL API
+//       shipmentDetails = await ShipGlobalShipmentCallApi(newOrder);
+
+//       if (shipmentDetails.status === "failed") {
+//         const errorsArray = Array.isArray(shipmentDetails.errors)
+//           ? shipmentDetails.errors
+//           : shipmentDetails.description && Array.isArray(shipmentDetails.description)
+//           ? shipmentDetails.description
+//           : null;
+
+//         return res.status(400).json({
+//           success: false,
+//           message: errorsArray
+//             ? errorsArray.join(", ")
+//             : shipmentDetails.description || "Shipment failed",
+//           errors: errorsArray,
+//         });
+//       }
+//     }
+
+//     // =====================================================
+//     // 5️⃣ SAVE ORDER WITH SHIPMENT DETAILS
+//     // =====================================================
+//     newOrder.shipmentDetails = shipmentDetails;
+//     newOrder.lastMileAWB = shipmentDetails.awbNumber;
+
+//     await newOrder.save();
+
+//     // =====================================================
+//     // 6️⃣ CREATE TRANSACTION RECORD
+//     // =====================================================
+//     const merchantOrderId = await generateMerchantOrderId();
+
+//     const paymentMethod =
+//       availableWallet >= totalAmount ? "Wallet" : "Credit";
+
+//     const transaction = new Transaction({
+//       user: userDoc._id,
+//       amount: totalAmount,
+//       status: "COMPLETED",
+//       type: "order-booking",
+//       paymentMethod,
+//       merchantOrderId,
+//     });
+
+//     await transaction.save();
+
+//     // =====================================================
+//     // 7️⃣ SEND RESPONSE TO USER
+//     // =====================================================
+//     res.status(201).json({
+//       success: true,
+//       message: "Order created successfully!",
+//       data: newOrder,
+//       walletBalance: userDoc.walletBalance,
+//       usedCredit: userDoc.usedCredit,
+//     });
+
+//     // =====================================================
+//     // 8️⃣ BACKGROUND TASK — TRACKING UPDATE
+//     // =====================================================
+//     (async () => {
+//       try {
+//         const partnerName = newOrder.shippingPartner?.name || "";
+
+//         if (partnerName.includes("Self") || partnerName.includes("QuickExpress")) {
+//           console.log(`Skipping tracking update for ${partnerName}`);
+//           return;
+//         }
+
+//         console.log(`⏳ Waiting 30s before tracking update...`);
+
+//         await new Promise((resolve) => setTimeout(resolve, 30000));
+
+//         const headers = {
+//           "Content-Type": "application/json",
+//           Accept: "application/json",
+//           Authorization: "Basic " + btoa(`${process.env.SG_USERNAME}:${process.env.SG_PASSWORD}`),
+//         };
+
+//         const trackingRes = await axios.post(
+//           "https://app.shipglobal.in/apiv1/tools/tracking",
+//           { tracking: newOrder.shipmentDetails.trackingNo2 },
+//           { headers, validateStatus: () => true }
+//         );
+
+//         console.log("📦 Tracking recheck response:", trackingRes.data);
+
+//         const updatedAwb = trackingRes?.data?.data?.awbInfo?.partner_lastmile_awb;
+
+//         if (updatedAwb) {
+//           await Order.findByIdAndUpdate(
+//             newOrder._id,
+//             {
+//               $set: {
+//                 "shipmentDetails.trackingNumber": updatedAwb,
+//               },
+//             },
+//             { new: true }
+//           );
+
+//           console.log(`✅ Updated trackingNumber to ${updatedAwb}`);
+//         } else {
+//           console.log(`⚠️ partner_lastmile_awb still missing after 30s`);
+//         }
+//       } catch (err) {
+//         console.error("❌ Background tracking update failed:", err.message);
+//       }
+//     })();
+
+//   } catch (error) {
+//    console.error("Error creating order:", error.message);
+
+// return res.status(400).json({
+//   success: false,
+//   message: error.message || "Shipment failed",
+// });
+
+//   }
+// };
+//#endregion
+
 const createOrder = async (req, res) => {
-//#region - createOrder
   try {
     console.log("Request Body:", req.body);
 
-    const { user, totalAmount, shippingPartner, ...orderData } = req.body;
+    const result = await createOrderService(req.body);
 
-    if (!user) {
-      return res.status(400).json({ success: false, message: "User ID is required" });
-    }
-
-    const userDoc = await User.findById(user);
-    if (!userDoc) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    if (userDoc.kycStatus !== "approved") {
-      return res.status(400).json({ success: false, message: "User KYC is not approved" });
-    }
-
-    // =====================================================
-    // 1️⃣ VALIDATE WALLET & CREDIT BEFORE ANY ORDER CREATION
-    // =====================================================
-    const availableWallet = userDoc.walletBalance;
-    const availableCredit = userDoc.hasCredit ? userDoc.creditLimit - userDoc.usedCredit : 0;
-    const totalAvailable = availableWallet + availableCredit;
-
-    if (totalAvailable < totalAmount) {
-      return res.status(400).json({
-        success: false,
-        message: "Insufficient wallet balance or credit limit",
-      });
-    }
-
-    // Deduct wallet first → then credit
-    let remainingAmount = totalAmount;
-
-    if (availableWallet >= remainingAmount) {
-      userDoc.walletBalance -= remainingAmount;
-      remainingAmount = 0;
-    } else {
-      remainingAmount -= availableWallet;
-      userDoc.walletBalance = 0;
-    }
-
-    if (remainingAmount > 0) {
-      userDoc.usedCredit = (userDoc.usedCredit || 0) + remainingAmount;
-    }
-
-    await userDoc.save(); // Save deducted balance FIRST
-
-    // =====================================================
-    // 2️⃣ CREATE ORDER
-    // =====================================================
-    const serialNumber = await generateSerialNumber();
-
-    const newOrder = new Order({
-      ...orderData,
-      user,
-      totalAmount,
-      invoiceNo: serialNumber,
-      shippingPartner: {
-        name: shippingPartner.name,
-        type: shippingPartner.type,
-      },
+    return res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+      data: result.data,
+      walletBalance: result.walletBalance,
+      usedCredit: result.usedCredit,
     });
-
-    // =====================================================
-    // 3️⃣ PREPARE SHIPMENT DETAILS STRUCTURE
-    // =====================================================
-    let shipmentDetails = {
-      trackingNumber: null,
-      awbNumber: null,
-      pdf: null,
-      weight: null,
-      service: null,
-      thirdPartyService: null,
-    };
-
-    // =====================================================
-    // 4️⃣ DETERMINE SHIPPING PARTNER
-    // =====================================================
-
-    if (shippingPartner.name.includes("QuickExpress")) {
-      // No API call
-      console.log("QuickExpress detected — skipping shipment API call.");
-    } 
-    else if (shippingPartner.name.includes("Self")) {
-      // UNITED API
-      const shipmentData = await UnitedCallShipmentAPI(newOrder);
-      console.log("United API Response:", shipmentData);
-
-   if (shipmentData.status !== "success") {
-  throw new Error(shipmentData.message || "Shipment failed");
-}
-
-shipmentDetails = {
-  trackingNumber: shipmentData.trackingNo,
-  awbNumber: shipmentData.awb,
-  pdf: shipmentData.labelPDF,
-  weight: shipmentData.weight,
-  service: shipmentData.service,
-  thirdPartyService: shipmentData.thirdParty,
-};
-
-    } 
-    else {
-      // SHIPGLOBAL API
-      shipmentDetails = await ShipGlobalShipmentCallApi(newOrder);
-
-      if (shipmentDetails.status === "failed") {
-        const errorsArray = Array.isArray(shipmentDetails.errors)
-          ? shipmentDetails.errors
-          : shipmentDetails.description && Array.isArray(shipmentDetails.description)
-          ? shipmentDetails.description
-          : null;
-
-        return res.status(400).json({
-          success: false,
-          message: errorsArray
-            ? errorsArray.join(", ")
-            : shipmentDetails.description || "Shipment failed",
-          errors: errorsArray,
-        });
-      }
-    }
-
-    // =====================================================
-    // 5️⃣ SAVE ORDER WITH SHIPMENT DETAILS
-    // =====================================================
-    newOrder.shipmentDetails = shipmentDetails;
-    newOrder.lastMileAWB = shipmentDetails.awbNumber;
-
-    await newOrder.save();
-
-    // =====================================================
-    // 6️⃣ CREATE TRANSACTION RECORD
-    // =====================================================
-    const merchantOrderId = await generateMerchantOrderId();
-
-    const paymentMethod =
-      availableWallet >= totalAmount ? "Wallet" : "Credit";
-
-    const transaction = new Transaction({
-      user: userDoc._id,
-      amount: totalAmount,
-      status: "COMPLETED",
-      type: "order-booking",
-      paymentMethod,
-      merchantOrderId,
-    });
-
-    await transaction.save();
-
-    // =====================================================
-    // 7️⃣ SEND RESPONSE TO USER
-    // =====================================================
-    res.status(201).json({
-      success: true,
-      message: "Order created successfully!",
-      data: newOrder,
-      walletBalance: userDoc.walletBalance,
-      usedCredit: userDoc.usedCredit,
-    });
-
-    // =====================================================
-    // 8️⃣ BACKGROUND TASK — TRACKING UPDATE
-    // =====================================================
-    (async () => {
-      try {
-        const partnerName = newOrder.shippingPartner?.name || "";
-
-        if (partnerName.includes("Self") || partnerName.includes("QuickExpress")) {
-          console.log(`Skipping tracking update for ${partnerName}`);
-          return;
-        }
-
-        console.log(`⏳ Waiting 30s before tracking update...`);
-
-        await new Promise((resolve) => setTimeout(resolve, 30000));
-
-        const headers = {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: "Basic " + btoa(`${process.env.SG_USERNAME}:${process.env.SG_PASSWORD}`),
-        };
-
-        const trackingRes = await axios.post(
-          "https://app.shipglobal.in/apiv1/tools/tracking",
-          { tracking: newOrder.shipmentDetails.trackingNo2 },
-          { headers, validateStatus: () => true }
-        );
-
-        console.log("📦 Tracking recheck response:", trackingRes.data);
-
-        const updatedAwb = trackingRes?.data?.data?.awbInfo?.partner_lastmile_awb;
-
-        if (updatedAwb) {
-          await Order.findByIdAndUpdate(
-            newOrder._id,
-            {
-              $set: {
-                "shipmentDetails.trackingNumber": updatedAwb,
-              },
-            },
-            { new: true }
-          );
-
-          console.log(`✅ Updated trackingNumber to ${updatedAwb}`);
-        } else {
-          console.log(`⚠️ partner_lastmile_awb still missing after 30s`);
-        }
-      } catch (err) {
-        console.error("❌ Background tracking update failed:", err.message);
-      }
-    })();
-
   } catch (error) {
-   console.error("Error creating order:", error.message);
+    console.error("Error creating order:", error.message);
 
-return res.status(400).json({
-  success: false,
-  message: error.message || "Shipment failed",
-});
-
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Shipment failed",
+      errors: error.errors || undefined,
+    });
   }
 };
 
+export const bookDraftOrder = async (
+  req,
+  res
+) => {
+  try {
+    const { id } = req.params;
 
-//#endregion
+    const result =
+      await bookDraftOrderService(id);
 
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error(
+      "Error booking draft:",
+      error
+    );
 
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
 
 
 const updateOrderStatus = async (req, res) => {

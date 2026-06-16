@@ -4,17 +4,33 @@ export const UnitedCallShipmentAPI = async (orderData) => {
 
   const getFullName = () => {
     return `${orderData.firstName} ${orderData.lastName}`.trim();
-
-
   }
 
   const USD_RATE = 89; // 1 USD = 89 INR
 
-// sum of (only unit price converted to USD)
-const customsValueUSD = orderData.productItems.reduce(
-  (sum, p) => sum + (p.productPrice / USD_RATE),
-  0
-);
+  // sum of (only unit price converted to USD)
+  const customsValueUSD = orderData.productItems.reduce(
+    (sum, p) => sum + (p.productPrice / USD_RATE),
+    0
+  );
+
+  // ✅ Detect if package name contains "Basic" (case-insensitive)
+  const isBasicPackage = orderData.shippingPartner?.name?.toLowerCase().includes('basic')
+
+  // ✅ Dynamically set service config based on package type
+  const serviceConfig = isBasicPackage
+    ? {
+        ServiceTypeCode: "PM",
+        ServiceType: "PM",
+        NetworkCode: "PMSELF",
+        ForwarderService: "PM"
+      }
+    : {
+        ServiceTypeCode: "ST01",
+        ServiceType: "STDNE",
+        NetworkCode: "USPS",
+        ForwarderService: "ECONOMY-USPS"
+      };
 
   // Map your orderData to shipment payload
   const shipmentPayload = {
@@ -55,9 +71,8 @@ const customsValueUSD = orderData.productItems.reduce(
         ConsigneeState: orderData.state,
         ConsigneePhoneNo: orderData.mobile,
 
-        ServiceTypeCode: "ST01",
-        ServiceType: "STDNE",
-        NetworkCode: "USPS",
+        // ✅ Spread dynamic service config here
+        ...serviceConfig,
 
         GoodsDesc: 'NDox',
         NumofItems: orderData.productItems.length.toString(),
@@ -73,7 +88,7 @@ const customsValueUSD = orderData.productItems.reduce(
           }
         ],
 
-       CustomsValue: Number(customsValueUSD.toFixed(2)),
+        CustomsValue: Number(customsValueUSD.toFixed(2)),
         CustomsCurrencyCode: orderData.invoiceCurrency || 'USD',
         ShipmentContent: orderData.productItems.map(p => p.productName).join(', '),
 
@@ -83,7 +98,7 @@ const customsValueUSD = orderData.productItems.reduce(
           HSNCode: orderData.HSNCode,
           Qty: p.productQuantity.toString(),
           Rate: p.productPrice.toFixed(2),
-          Amount: Number((p.productPrice / USD_RATE).toFixed(2)), // NOT multiplied by qty
+          Amount: Number((p.productPrice / USD_RATE).toFixed(2)),
           Unit: "PCS",
           ShipPieceIGST: "0",
           PieceWt: parseFloat(orderData.weight || 0.5)
@@ -106,75 +121,70 @@ const customsValueUSD = orderData.productItems.reduce(
         MEIS: "No",
         DutyTaxPaid: "",
         DutiesAccountNo: "",
-        ForwarderService: "ECONOMY-USPS",
+        // ✅ ForwarderService is now handled by serviceConfig above
         InsuredValue: "0"
       }
     ]
   };
-  
+
   async function attemptApiCall(attempt = 1) {
-  try {
-    const response = await axios.post(
-      "http://198.38.81.111:9002/api/Shipping/AddShipment",
-      shipmentPayload
-    );
-
-    console.log("Shipment Payload", shipmentPayload)
-
-    const data = response.data?.[0];
-    if (!data) throw new Error("❌ Invalid API response format");
-
-    const shipmentResp = data.ShipmentResponses?.[0];
-    if (!shipmentResp) throw new Error("❌ Missing ShipmentResponses from courier API");
-
-    // Extract fields returned by the API
-    const status = shipmentResp.Status?.toString().trim();
-    const code = shipmentResp.Code?.toString().trim();
-
-    // SUCCESS MATCH BASED ON YOUR JSON:  Status === "Success" AND Code === "100"
-    const isSuccess =
-      (status === "Success" || status?.toLowerCase() === "success") &&
-      (code === "100" || code === 100);
-
-    if (!isSuccess) {
-      throw new Error(
-        `❌ Shipment failed — Status: ${shipmentResp.Status} | Code: ${shipmentResp.Code} | Description: ${shipmentResp.Description}`
+    try {
+      const response = await axios.post(
+        "http://198.38.81.111:9002/api/Shipping/AddShipment",
+        shipmentPayload
       );
+
+      console.log("Shipment Payload", shipmentPayload);
+      console.log("Package Type:", orderData.package, "| Is Basic:", isBasicPackage);
+
+      const data = response.data?.[0];
+      if (!data) throw new Error("❌ Invalid API response format");
+
+      const shipmentResp = data.ShipmentResponses?.[0];
+      if (!shipmentResp) throw new Error("❌ Missing ShipmentResponses from courier API");
+
+      const status = shipmentResp.Status?.toString().trim();
+      const code = shipmentResp.Code?.toString().trim();
+
+      const isSuccess =
+        (status === "Success" || status?.toLowerCase() === "success") &&
+        (code === "100" || code === 100);
+
+      if (!isSuccess) {
+        throw new Error(
+          `❌ Shipment failed — Status: ${shipmentResp.Status} | Code: ${shipmentResp.Code} | Description: ${shipmentResp.Description}`
+        );
+      }
+
+      const shipmentDetails = data.shipmentDetails?.[0];
+      if (!shipmentDetails) throw new Error("❌ shipmentDetails missing in response");
+
+      return {
+        status: "success",
+        awb: shipmentDetails.AwbNo,
+        trackingNo: shipmentDetails.TrackingNo,
+        trackingAlt: shipmentDetails.TrackingNo2,
+        labelPDF: shipmentDetails.PDF,
+        service: shipmentDetails.Service,
+        weight: shipmentDetails.Weight,
+        courier: shipmentDetails.Forwarder,
+        thirdParty: shipmentDetails.ThirdPartyService,
+        raw: data
+      };
+
+    } catch (error) {
+      console.error(`Attempt ${attempt} failed →`, error.message);
+
+      if (attempt >= 3) {
+        throw new Error(error.message);
+      }
+
+      const delay = 500 * Math.pow(2, attempt);
+      await new Promise((res) => setTimeout(res, delay));
+
+      return attemptApiCall(attempt + 1);
     }
-
-    const shipmentDetails = data.shipmentDetails?.[0];
-    if (!shipmentDetails) throw new Error("❌ shipmentDetails missing in response");
-
-    // 🎉 SUCCESS → STOP RETRIES AND RETURN
-    return {
-      status: "success",
-      awb: shipmentDetails.AwbNo,
-      trackingNo: shipmentDetails.TrackingNo,
-      trackingAlt: shipmentDetails.TrackingNo2,
-      labelPDF: shipmentDetails.PDF,
-      service: shipmentDetails.Service,
-      weight: shipmentDetails.Weight,
-      courier: shipmentDetails.Forwarder,
-      thirdParty: shipmentDetails.ThirdPartyService,
-      raw: data
-    };
-
-  } catch (error) {
-    console.error(`Attempt ${attempt} failed →`, error.message);
-
-    if (attempt >= 3) {
-         throw new Error(error.message);
-    }
-
-    // Exponential backoff wait
-    const delay = 500 * Math.pow(2, attempt);
-    await new Promise((res) => setTimeout(res, delay));
-
-    return attemptApiCall(attempt + 1);
   }
-}
 
-// Execute with retry
-return await attemptApiCall();
+  return await attemptApiCall();
 };
-

@@ -1,5 +1,5 @@
 import express from 'express';
-import { createOrder, updateOrderStatus, getTotalOrderCount, getAllOrders, clubOrders, getDisputedOrders, updateDisputeStatus, getOrderDetails } from '../controllers/orderController.js'; // Import the createOrder function
+import { createOrder, updateOrderStatus, getTotalOrderCount, getAllOrders, clubOrders, getDisputedOrders, updateDisputeStatus, getOrderDetails, bookDraftOrder } from '../controllers/orderController.js'; // Import the createOrder function
 import authMiddleware from '../middlewares/authMiddleware.js';
 const router = express.Router();
 
@@ -16,7 +16,7 @@ router.get('/count/total', getTotalOrderCount);
 router.get('/total', getAllOrders);
 
 router.post('/club', clubOrders)
-
+router.post("/:id/book", bookDraftOrder);
 router.put('/:orderId/status', updateOrderStatus)
 router.get('/getOrderDetails/:orderId', getOrderDetails)
 router.put('/updatedispute/:id', updateDisputeStatus )
