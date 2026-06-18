@@ -38,6 +38,11 @@ const loginAdmin = async (req, res) => {
         username: process.env.FINANCE_USERNAME,
         password: process.env.FINANCE_PASSWORD,
       },
+      {
+        role: "DigitalMarketing",
+        username: process.env.DM_USERNAME,
+        password: process.env.DM_PASSWORD,
+      },
     ];
 
     // Find matching role
