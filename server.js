@@ -20,6 +20,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import cron from 'node-cron';
 import { cleanupOldLabels } from './utils/cleanupLabels.js';
+// import bookingRoutes from './src/api/v1/routes/bookingRoutes.js'
+import blogRoutes from './routes/blogs.routes.js';
 dotenv.config();
 
 connectDb();
@@ -86,8 +88,17 @@ app.use('/api/tracking', trackingRoutes )
 // API Routes
 app.use("/api/notifications", notificationRoutes);
 
+app.use("/api/blogs", blogRoutes)
 
 
+// Booking API is partner-facing — API key auth, not cookie/session auth
+// so CORS restriction doesn't apply here
+// app.use('/api/v1/bookings', (req, res, next) => {
+//   res.header('Access-Control-Allow-Origin', '*');
+//   res.header('Access-Control-Allow-Headers', 'Content-Type, X-API-KEY');
+//   if (req.method === 'OPTIONS') return res.sendStatus(200);
+//   next();
+// }, bookingRoutes);
 
 console.log("🧾 Serving labels from:", path.join(process.cwd(), "uploads/labels"));
 
