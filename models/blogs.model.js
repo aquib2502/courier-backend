@@ -45,6 +45,26 @@ const blogSchema = new mongoose.Schema(
       default: "Admin",
     },
 
+    // Author bio block — shown at the end of the article
+    authorImage: {
+      type: String,
+      default: "",
+    },
+
+    authorBio: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    authorSocial: {
+      linkedin: { type: String, trim: true, default: "" },
+      twitter: { type: String, trim: true, default: "" },
+      instagram: { type: String, trim: true, default: "" },
+      facebook: { type: String, trim: true, default: "" },
+      website: { type: String, trim: true, default: "" },
+    },
+
     category: {
       type: String,
       trim: true,

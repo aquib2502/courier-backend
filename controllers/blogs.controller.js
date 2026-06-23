@@ -62,6 +62,18 @@ const uploadImages = async (req, res) => {
       );
     }
 
+    // Single inline image to be inserted between paragraphs in the content editor
+    if (req.files?.contentImage?.[0]) {
+      const file = req.files.contentImage[0];
+      result.contentImage = `${BASE_URL}/uploads/blogs/${file.filename}`;
+    }
+
+    // Author avatar / headshot
+    if (req.files?.authorImage?.[0]) {
+      const file = req.files.authorImage[0];
+      result.authorImage = `${BASE_URL}/uploads/blogs/${file.filename}`;
+    }
+
     return res.status(200).json({
       success: true,
       data: result,
@@ -87,6 +99,9 @@ const createBlog = async (req, res) => {
       featuredImage,
       gallery,
       author,
+      authorImage,
+      authorBio,
+      authorSocial,
       category,
       tags,
       status,
@@ -110,6 +125,12 @@ const createBlog = async (req, res) => {
       try { parsedGallery = JSON.parse(gallery); } catch { parsedGallery = []; }
     }
 
+    // authorSocial may arrive as a JSON string if sent via FormData
+    let parsedAuthorSocial = authorSocial;
+    if (typeof authorSocial === 'string') {
+      try { parsedAuthorSocial = JSON.parse(authorSocial); } catch { parsedAuthorSocial = undefined; }
+    }
+
     const blog = await Blog.create({
       title,
       slug,
@@ -118,6 +139,9 @@ const createBlog = async (req, res) => {
       featuredImage,
       gallery: parsedGallery || [],
       author,
+      authorImage,
+      authorBio,
+      authorSocial: parsedAuthorSocial,
       category,
       tags,
       status,
@@ -290,6 +314,11 @@ const updateBlog = async (req, res) => {
     // Parse gallery if it arrived as a JSON string
     if (typeof updateData.gallery === 'string') {
       try { updateData.gallery = JSON.parse(updateData.gallery); } catch { updateData.gallery = []; }
+    }
+
+    // Parse authorSocial if it arrived as a JSON string
+    if (typeof updateData.authorSocial === 'string') {
+      try { updateData.authorSocial = JSON.parse(updateData.authorSocial); } catch { delete updateData.authorSocial; }
     }
 
     if (req.body.title && req.body.title.trim() !== blog.title.trim()) {

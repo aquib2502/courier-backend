@@ -21,6 +21,8 @@ router.post(
   upload.fields([
     { name: "featuredImage", maxCount: 1 },
     { name: "gallery", maxCount: 10 },
+    { name: "contentImage", maxCount: 1 },
+    { name: "authorImage", maxCount: 1 },
   ]),
   uploadImages
 );
