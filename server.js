@@ -67,6 +67,9 @@ app.get('/', (req, res) => {
   res.send('Api is running...');
 });
 
+import domesticAdminRoutes from './modules/domestic/routes/domesticAdminRoutes.js';
+app.use('/api/domestic-admin', domesticAdminRoutes); 
+
 app.use('/api/user', userRoutes )
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
@@ -90,8 +93,6 @@ app.use("/api/notifications", notificationRoutes);
 
 app.use("/api/blogs", blogRoutes)
 
-import domesticAdminRoutes from './modules/domestic/routes/domesticAdminRoutes.js';
-app.use('/api/domestic/admin', domesticAdminRoutes); 
 
 import domesticRoutes from './modules/domestic/routes/domesticRoutes.js';
 app.use('/api/domestic', domesticRoutes);
