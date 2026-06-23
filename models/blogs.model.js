@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+
 const blogSchema = new mongoose.Schema(
   {
     title: {
@@ -30,6 +31,14 @@ const blogSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    // NEW: multiple gallery images served from your own domain
+    gallery: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
 
     author: {
       type: String,
@@ -86,7 +95,6 @@ const blogSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
 
 const Blog = mongoose.model("Blogs", blogSchema);
 

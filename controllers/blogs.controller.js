@@ -1,5 +1,6 @@
 import Blog from "../models/blogs.model.js";
-import slugify from 'slugify'
+import slugify from 'slugify';
+
 /**
  * Generate unique slug
  */
@@ -37,6 +38,44 @@ const generateUniqueSlug = async (title, blogId = null) => {
 };
 
 /**
+ * UPLOAD IMAGES
+ * POST /api/blogs/upload
+ * Accepts: multipart/form-data
+ *   - featuredImage (single, optional)
+ *   - gallery       (multiple, optional)
+ * Returns URLs served from your own domain as static files.
+ */
+const uploadImages = async (req, res) => {
+  try {
+    const BASE_URL = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+
+    const result = {};
+
+    if (req.files?.featuredImage?.[0]) {
+      const file = req.files.featuredImage[0];
+      result.featuredImage = `${BASE_URL}/uploads/blogs/${file.filename}`;
+    }
+
+    if (req.files?.gallery?.length) {
+      result.gallery = req.files.gallery.map(
+        (f) => `${BASE_URL}/uploads/blogs/${f.filename}`
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error("Upload Images Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
  * CREATE BLOG
  */
 const createBlog = async (req, res) => {
@@ -46,6 +85,7 @@ const createBlog = async (req, res) => {
       excerpt,
       content,
       featuredImage,
+      gallery,
       author,
       category,
       tags,
@@ -55,7 +95,6 @@ const createBlog = async (req, res) => {
       seoKeywords,
     } = req.body;
 
-    console.log(req.body)
     if (!title || !content) {
       return res.status(400).json({
         success: false,
@@ -65,12 +104,19 @@ const createBlog = async (req, res) => {
 
     const slug = await generateUniqueSlug(title);
 
+    // gallery may arrive as a JSON string if sent via FormData
+    let parsedGallery = gallery;
+    if (typeof gallery === 'string') {
+      try { parsedGallery = JSON.parse(gallery); } catch { parsedGallery = []; }
+    }
+
     const blog = await Blog.create({
       title,
       slug,
       excerpt,
       content,
       featuredImage,
+      gallery: parsedGallery || [],
       author,
       category,
       tags,
@@ -88,7 +134,6 @@ const createBlog = async (req, res) => {
     });
   } catch (error) {
     console.error("Create Blog Error:", error);
-
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -103,9 +148,7 @@ const getBlogs = async (req, res) => {
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
-
     const skip = (page - 1) * limit;
-
     const filter = {};
 
     if (req.query.status) {
@@ -128,7 +171,6 @@ const getBlogs = async (req, res) => {
     });
   } catch (error) {
     console.error("Get Blogs Error:", error);
-
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -156,7 +198,6 @@ const getBlogById = async (req, res) => {
     });
   } catch (error) {
     console.error("Get Blog Error:", error);
-
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -191,7 +232,6 @@ const getBlogBySlug = async (req, res) => {
     });
   } catch (error) {
     console.error("Get Blog By Slug Error:", error);
-
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -206,19 +246,14 @@ const getPublishedBlogs = async (req, res) => {
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
-
     const skip = (page - 1) * limit;
 
-    const blogs = await Blog.find({
-      status: "Published",
-    })
+    const blogs = await Blog.find({ status: "Published" })
       .sort({ publishedAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await Blog.countDocuments({
-      status: "Published",
-    });
+    const total = await Blog.countDocuments({ status: "Published" });
 
     return res.status(200).json({
       success: true,
@@ -229,7 +264,6 @@ const getPublishedBlogs = async (req, res) => {
     });
   } catch (error) {
     console.error("Published Blogs Error:", error);
-
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -253,30 +287,23 @@ const updateBlog = async (req, res) => {
 
     const updateData = { ...req.body };
 
-    if (
-      req.body.title &&
-      req.body.title.trim() !== blog.title.trim()
-    ) {
-      updateData.slug = await generateUniqueSlug(
-        req.body.title,
-        blog._id
-      );
+    // Parse gallery if it arrived as a JSON string
+    if (typeof updateData.gallery === 'string') {
+      try { updateData.gallery = JSON.parse(updateData.gallery); } catch { updateData.gallery = []; }
     }
 
-    if (
-      req.body.status === "Published" &&
-      !blog.publishedAt
-    ) {
+    if (req.body.title && req.body.title.trim() !== blog.title.trim()) {
+      updateData.slug = await generateUniqueSlug(req.body.title, blog._id);
+    }
+
+    if (req.body.status === "Published" && !blog.publishedAt) {
       updateData.publishedAt = new Date();
     }
 
     const updatedBlog = await Blog.findByIdAndUpdate(
       req.params.id,
       updateData,
-      {
-        new: true,
-        runValidators: true,
-      }
+      { new: true, runValidators: true }
     );
 
     return res.status(200).json({
@@ -286,7 +313,6 @@ const updateBlog = async (req, res) => {
     });
   } catch (error) {
     console.error("Update Blog Error:", error);
-
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -316,7 +342,6 @@ const deleteBlog = async (req, res) => {
     });
   } catch (error) {
     console.error("Delete Blog Error:", error);
-
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -325,11 +350,12 @@ const deleteBlog = async (req, res) => {
 };
 
 export {
-    createBlog,
-    getBlogById,
-    getBlogBySlug,
-    getBlogs,
-    updateBlog,
-    deleteBlog,
-    getPublishedBlogs
-}
+  createBlog,
+  getBlogById,
+  getBlogBySlug,
+  getBlogs,
+  updateBlog,
+  deleteBlog,
+  getPublishedBlogs,
+  uploadImages,
+};
