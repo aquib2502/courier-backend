@@ -2,7 +2,7 @@ import Role from "../models/roleModel.js";
 
 // controllers/roleController.js
 
- const getMenuByRole = async (req, res) => {
+const getMenuByRole = async (req, res) => {
   try {
     const userRole = req.user?.role;
 
@@ -45,7 +45,7 @@ import Role from "../models/roleModel.js";
 /**
  * Toggle a permission for a role (SuperAdmin only)
  */
- const togglePermission = async (req, res) => {
+const togglePermission = async (req, res) => {
   try {
     const { roleName, tab } = req.body;
 
@@ -80,65 +80,100 @@ import Role from "../models/roleModel.js";
 
 
 
+// const seedRoles = async (req, res) => {
+//   try {
+//     // Clear old roles
+//     await Role.deleteMany();
+//     console.log('Old roles cleared.');
+
+//     // Base permissions
+//     const basePermissions = [
+//       // { tab: 'dashboard', label: 'Dashboard', icon: 'TrendingUp', order: 1, enabled: true },
+//       // { tab: 'users', label: 'User Management', icon: 'Users', order: 2, enabled: true },
+//       // { tab: 'pickup-requests', label: 'Pickup Requests', icon: 'FileText', order: 3, enabled: true },
+//       // { tab: 'orders', label: 'Order Management', icon: 'Package', order: 4, enabled: true },
+//       // { tab: 'transactions', label: 'Transactions', icon: 'CreditCard', order: 5, enabled: true },
+//       // { tab: 'rates', label: 'Rate Management', icon: 'Settings', order: 6, enabled: true },
+//       // { tab: 'wallet', label: 'Wallet Credits', icon: 'Wallet', order: 7, enabled: true },
+//       // { tab: 'rbfm', label: 'RBFM', icon: 'Plus', order: 8, enabled: true },
+//       // { tab: 'discounts', label: 'Discounts', icon: 'Percent', order: 9, enabled: true },
+//       // {tab: 'clubbing', label: 'Order Clubbing', icon: 'SquaresExclude', order: 10, enabled: true },
+//       // {tab: 'inward-scan', label: 'Inward Scanning', icon: 'Inbox', order: 10, enabled: true }
+//       {tab: 'blogs', label: 'Blogs', icon: 'Rss', order: 11, enabled: true }
+//     ];
+
+//     // Define roles
+//     const roles = [
+//       // {
+//       //   name: 'SuperAdmin',
+//       //   description: 'Full system access',
+//       //   permissions: basePermissions
+//       // },
+//       {
+//         name: 'DigitalMarketing',
+//         description: 'Managed By Digital Marketing Team',
+//         permissions: basePermissions
+//       },
+//       // {
+//       //   name: 'Operator',
+//       //   description: 'Managed by SuperAdmin',
+//       //   permissions: basePermissions.map(p => ({ ...p, enabled: false }))
+//       // },
+//       // {
+//       //   name: 'PickUp',
+//       //   description: 'Managed by SuperAdmin',
+//       //   permissions: basePermissions.map(p => ({ ...p, enabled: false }))
+//       // },
+//       // {
+//       //   name: 'Finance',
+//       //   description: 'Managed by SuperAdmin',
+//       //   permissions: basePermissions.map(p => ({ ...p, enabled: false }))
+//       // }
+//     ];
+
+//     // Log each role before seeding
+//     roles.forEach(role => console.log(`Seeding role: ${role.name}`));
+
+//     // Insert roles into DB
+//     await Role.insertMany(roles);
+
+//     console.log('All roles seeded successfully.');
+//     res.status(201).json({ message: 'Roles seeded successfully.' });
+//   } catch (error) {
+//     console.error('Error seeding roles:', error);
+//     res.status(500).json({ message: 'Internal server error.' });
+//   }
+// };
+
 const seedRoles = async (req, res) => {
   try {
-    // Clear old roles
-    await Role.deleteMany();
-    console.log('Old roles cleared.');
-
-    // Base permissions
-    const basePermissions = [
-      { tab: 'dashboard', label: 'Dashboard', icon: 'TrendingUp', order: 1, enabled: true },
-      { tab: 'users', label: 'User Management', icon: 'Users', order: 2, enabled: true },
-      { tab: 'pickup-requests', label: 'Pickup Requests', icon: 'FileText', order: 3, enabled: true },
-      { tab: 'orders', label: 'Order Management', icon: 'Package', order: 4, enabled: true },
-      { tab: 'transactions', label: 'Transactions', icon: 'CreditCard', order: 5, enabled: true },
-      { tab: 'rates', label: 'Rate Management', icon: 'Settings', order: 6, enabled: true },
-      { tab: 'wallet', label: 'Wallet Credits', icon: 'Wallet', order: 7, enabled: true },
-      { tab: 'rbfm', label: 'RBFM', icon: 'Plus', order: 8, enabled: true },
-      { tab: 'discounts', label: 'Discounts', icon: 'Percent', order: 9, enabled: true },
-      {tab: 'clubbing', label: 'Order Clubbing', icon: 'SquaresExclude', order: 10, enabled: true },
-      {tab: 'inward-scan', label: 'Inward Scanning', icon: 'Inbox', order: 10, enabled: true }
-    ];
-
-    // Define roles
-    const roles = [
-      {
-        name: 'SuperAdmin',
-        description: 'Full system access',
-        permissions: basePermissions
+  await Role.updateOne(
+  { name: "SuperAdmin" },
+  {
+    $addToSet: {
+      permissions: {
+        tab: "blogs",
+        label: "Blogs",
+        icon: "Rss",
+        order: 11,
+        enabled: true,
       },
-      {
-        name: 'Operator',
-        description: 'Managed by SuperAdmin',
-        permissions: basePermissions.map(p => ({ ...p, enabled: false }))
-      },
-      {
-        name: 'PickUp',
-        description: 'Managed by SuperAdmin',
-        permissions: basePermissions.map(p => ({ ...p, enabled: false }))
-      },
-      {
-        name: 'Finance',
-        description: 'Managed by SuperAdmin',
-        permissions: basePermissions.map(p => ({ ...p, enabled: false }))
-      }
-    ];
+    },
+  }
+);
 
-    // Log each role before seeding
-    roles.forEach(role => console.log(`Seeding role: ${role.name}`));
-
-    // Insert roles into DB
-    await Role.insertMany(roles);
-
-    console.log('All roles seeded successfully.');
-    res.status(201).json({ message: 'Roles seeded successfully.' });
+    return res.status(201).json({
+      success: true,
+      message: "Digital Marketing role seeded successfully",
+    });
   } catch (error) {
-    console.error('Error seeding roles:', error);
-    res.status(500).json({ message: 'Internal server error.' });
+    console.error("Error seeding roles:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
-
-
 
 export { getMenuByRole, seedRoles, togglePermission };

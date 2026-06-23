@@ -90,15 +90,13 @@ app.use("/api/notifications", notificationRoutes);
 
 app.use("/api/blogs", blogRoutes)
 
+import domesticAdminRoutes from './modules/domestic/routes/domesticAdminRoutes.js';
+app.use('/api/domestic/admin', domesticAdminRoutes); 
 
-// Booking API is partner-facing — API key auth, not cookie/session auth
-// so CORS restriction doesn't apply here
-// app.use('/api/v1/bookings', (req, res, next) => {
-//   res.header('Access-Control-Allow-Origin', '*');
-//   res.header('Access-Control-Allow-Headers', 'Content-Type, X-API-KEY');
-//   if (req.method === 'OPTIONS') return res.sendStatus(200);
-//   next();
-// }, bookingRoutes);
+import domesticRoutes from './modules/domestic/routes/domesticRoutes.js';
+app.use('/api/domestic', domesticRoutes);
+
+
 
 console.log("🧾 Serving labels from:", path.join(process.cwd(), "uploads/labels"));
 
