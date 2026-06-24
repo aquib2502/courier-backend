@@ -1,43 +1,42 @@
 import Partner from '../models/partnerModel.js';
 import PartnerWalletLedger from '../models/partnerWalletLedgerModel.js';
 import DomesticShipment from '../models/domesticShipmentModel.js';
-import {
-  createForwardShipment,
-  createReverseShipment,
-  trackShipment,
-  cancelShipment,
-} from './shadowfaxService.js';
+import Rate from '../../../models/rateModel.js'
+import { CARRIERS } from '../config/carrierConfig.js';
+import { getCarrier } from './carrierFactory.js';
+import User from '../../../models/userModel.js';
 
 // ─────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Simple per-kg pricing. Replace with your actual rate card.
- * weight in kg → cost in ₹
+ * Look up the rate for this shipment from the Rates collection.
+ * Finds the record where dest_country = "India", package = courierKey,
+ * and weight is the smallest slab >= shipment weight.
+ * Throws if no matching rate is found so the booking is rejected cleanly.
  */
-const calculateShipmentCost = (weight) => {
-  const BASE_RATE = 50; // ₹ flat for first 0.5 kg
-  const PER_KG = 40;    // ₹ per additional kg
+const getRateFromDB = async (courierKey, weight) => {
+  const rate = await Rate.findOne({
+    dest_country: 'India',
+    package: courierKey,
+    weight: { $gte: weight },
+  }).sort({ weight: 1 }); // smallest matching slab first
 
-  if (weight <= 0.5) return BASE_RATE;
-  return BASE_RATE + Math.ceil((weight - 0.5) * 2) * (PER_KG / 2);
+  if (!rate) {
+    throw new Error(
+      `No rate found for courier "${courierKey}" at weight ${weight} kg. ` +
+      `Please contact TraceExpress to update the rate card.`
+    );
+  }
+
+  return rate.rate;
 };
 
 // ─────────────────────────────────────────────────────────────
 // bookShipmentService
 // ─────────────────────────────────────────────────────────────
 
-/**
- * Main booking flow:
- * 1. Validate payload
- * 2. Check partner wallet
- * 3. Call Shadowfax
- * 4. Deduct wallet
- * 5. Create ledger entry
- * 6. Save shipment
- * 7. Return normalised response
- */
 export const bookShipmentService = async (partner, payload) => {
   const { shipmentType, referenceNumber, pickup, delivery, weight } = payload;
 
@@ -53,10 +52,17 @@ export const bookShipmentService = async (partner, payload) => {
     throw new Error('delivery.name, delivery.mobile, delivery.address and delivery.pincode are required');
   }
 
-  // ── 2. Wallet check ──────────────────────────────────────────
-  const cost = calculateShipmentCost(weight || 0.5);
+  // ── NEW: Resolve carrier ─────────────────────────────────────
+  const courierKey = payload.courier || 'TTE_BASIC_SURFACE';
+  const carrierConfig = CARRIERS[courierKey];
+  if (!carrierConfig) {
+    throw new Error(`Unknown courier: "${courierKey}". Valid options: ${Object.keys(CARRIERS).join(', ')}`);
+  }
+  const carrier = getCarrier(carrierConfig.provider);
 
-  // Re-fetch partner with latest balance (avoid stale data)
+  // ── 2. Wallet check ──────────────────────────────────────────
+  const cost = await getRateFromDB(courierKey, weight || 0.5);
+
   const freshPartner = await Partner.findById(partner._id);
 
   if (freshPartner.walletBalance < cost) {
@@ -65,8 +71,8 @@ export const bookShipmentService = async (partner, payload) => {
     );
   }
 
-  // ── 3. Call Shadowfax ────────────────────────────────────────
-  const sfxData = {
+  // ── 3. Call carrier ──────────────────────────────────────────
+  const shipmentData = {
     referenceNumber,
     pickup,
     delivery,
@@ -77,20 +83,20 @@ export const bookShipmentService = async (partner, payload) => {
     gstin: payload.gstin,
   };
 
-  let sfxResult;
-
-  if (shipmentType === 'FORWARD') {
-    sfxResult = await createForwardShipment(sfxData);
-  } else {
-    sfxResult = await createReverseShipment(sfxData);
-  }
+  // CHANGED: was hardcoded createForwardShipment/createReverseShipment
+  const carrierResult = shipmentType === 'FORWARD'
+    ? await carrier.createForwardShipment(shipmentData)
+    : await carrier.createReverseShipment(shipmentData);
 
   // ── 4. Deduct wallet ─────────────────────────────────────────
   freshPartner.walletBalance -= cost;
   await freshPartner.save();
 
-  // ── 5. Create ledger entry ───────────────────────────────────
-  // (We create the shipment doc first so we have its _id for the ledger)
+  if (freshPartner.userId) {
+    await User.findByIdAndUpdate(freshPartner.userId, { $inc: { walletBalance: -cost } });
+  }
+
+  // ── 5. Save shipment + ledger ────────────────────────────────
   const shipment = new DomesticShipment({
     partnerId: partner._id,
     referenceNumber,
@@ -98,12 +104,13 @@ export const bookShipmentService = async (partner, payload) => {
     pickupAddress: pickup,
     deliveryAddress: delivery,
     weight: weight || 0.5,
-    awb: sfxResult.awb,
-    trackingNumber: sfxResult.trackingNumber,
-    status: sfxResult.status,
+    courier: carrierConfig.label,                             // CHANGED: was hardcoded 'Shadowfax'
+    awb: carrierResult.awb,
+    trackingNumber: carrierResult.trackingNumber,
+    status: carrierResult.status,
     amountCharged: cost,
-    shadowfaxOrderId: sfxResult.shadowfaxOrderId,
-    shadowfaxResponse: sfxResult.shadowfaxResponse,
+    shadowfaxOrderId: carrierResult.shadowfaxOrderId,
+    shadowfaxResponse: carrierResult.shadowfaxResponse,
   });
 
   await shipment.save();
@@ -114,15 +121,14 @@ export const bookShipmentService = async (partner, payload) => {
     amount: cost,
     balanceAfter: freshPartner.walletBalance,
     shipmentId: shipment._id,
-    remarks: `Booking ${shipmentType} shipment — AWB: ${sfxResult.awb}`,
+    remarks: `Booking ${shipmentType} shipment — AWB: ${carrierResult.awb}`,
   });
 
-  // ── 6. Return normalised response ────────────────────────────
   return {
     success: true,
-    awb: sfxResult.awb,
-    trackingNumber: sfxResult.trackingNumber,
-    status: sfxResult.status,
+    awb: carrierResult.awb,
+    trackingNumber: carrierResult.trackingNumber,
+    status: carrierResult.status,
     shipmentId: shipment._id,
     amountCharged: cost,
     walletBalance: freshPartner.walletBalance,
@@ -134,30 +140,29 @@ export const bookShipmentService = async (partner, payload) => {
 // ─────────────────────────────────────────────────────────────
 
 export const trackShipmentService = async (partner, awb) => {
-  // Confirm this AWB belongs to this partner
-  const shipment = await DomesticShipment.findOne({
-    partnerId: partner._id,
-    awb,
-  });
+  const shipment = await DomesticShipment.findOne({ partnerId: partner._id, awb });
 
-  if (!shipment) {
-    throw new Error('AWB not found for this partner');
-  }
+  if (!shipment) throw new Error('AWB not found for this partner');
 
-  const sfxTracking = await trackShipment(awb);
+  // NEW: route tracking through the correct carrier based on what was saved
+  const carrierConfig = Object.values(CARRIERS).find(c => c.label === shipment.courier);
+  const carrier = carrierConfig
+    ? getCarrier(carrierConfig.provider)
+    : getCarrier('shadowfax');                               // safe fallback for old records
 
-  // Update local status with whatever Shadowfax says
-  const latestStatus = sfxTracking.order_details?.status || shipment.status;
+  const trackingResult = await carrier.trackShipment(awb);
+
+  const latestStatus = trackingResult.order_details?.status || shipment.status;
   shipment.status = latestStatus;
   await shipment.save();
 
   return {
     success: true,
     awb,
-    status: sfxTracking.order_details?.status_display || latestStatus,
+    status: trackingResult.order_details?.status_display || latestStatus,
     statusId: latestStatus,
-    trackingDetails: sfxTracking.tracking_details || [],
-    orderDetails: sfxTracking.order_details || {},
+    trackingDetails: trackingResult.tracking_details || [],
+    orderDetails: trackingResult.order_details || {},
   };
 };
 
@@ -166,28 +171,29 @@ export const trackShipmentService = async (partner, awb) => {
 // ─────────────────────────────────────────────────────────────
 
 export const cancelShipmentService = async (partner, awb, cancelReason) => {
-  const shipment = await DomesticShipment.findOne({
-    partnerId: partner._id,
-    awb,
-  });
+  const shipment = await DomesticShipment.findOne({ partnerId: partner._id, awb });
 
-  if (!shipment) {
-    throw new Error('AWB not found for this partner');
-  }
+  if (!shipment) throw new Error('AWB not found for this partner');
+  if (shipment.status === 'cancelled') throw new Error('Shipment is already cancelled');
 
-  if (shipment.status === 'cancelled') {
-    throw new Error('Shipment is already cancelled');
-  }
+  // NEW: route cancel through the correct carrier
+  const carrierConfig = Object.values(CARRIERS).find(c => c.label === shipment.courier);
+  const carrier = carrierConfig
+    ? getCarrier(carrierConfig.provider)
+    : getCarrier('shadowfax');                               // safe fallback for old records
 
-  const sfxResult = await cancelShipment(awb, cancelReason || 'Cancelled by client');
+  const cancelResult = await carrier.cancelShipment(awb, cancelReason || 'Cancelled by client');
 
-  // Refund if Shadowfax confirmed cancellation (not just queued)
-  const refunded = sfxResult.responseCode === 200;
+  const refunded = cancelResult.responseCode === 200;
 
   if (refunded) {
     const freshPartner = await Partner.findById(partner._id);
     freshPartner.walletBalance += shipment.amountCharged;
     await freshPartner.save();
+
+    if (freshPartner.userId) {
+      await User.findByIdAndUpdate(freshPartner.userId, { $inc: { walletBalance: shipment.amountCharged } });
+    }
 
     await PartnerWalletLedger.create({
       partnerId: partner._id,
@@ -205,20 +211,18 @@ export const cancelShipmentService = async (partner, awb, cancelReason) => {
   return {
     success: true,
     awb,
-    message: sfxResult.responseMsg,
+    message: cancelResult.responseMsg,
     refunded,
     refundAmount: refunded ? shipment.amountCharged : 0,
   };
 };
 
 // ─────────────────────────────────────────────────────────────
-// getWalletService
+// getWalletService — UNCHANGED
 // ─────────────────────────────────────────────────────────────
 
 export const getWalletService = async (partner) => {
-  const recentLedger = await PartnerWalletLedger.find({
-    partnerId: partner._id,
-  })
+  const recentLedger = await PartnerWalletLedger.find({ partnerId: partner._id })
     .sort({ createdAt: -1 })
     .limit(10);
 
@@ -230,7 +234,7 @@ export const getWalletService = async (partner) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// getShipmentsService
+// getShipmentsService — UNCHANGED
 // ─────────────────────────────────────────────────────────────
 
 export const getShipmentsService = async (partner, query = {}) => {
@@ -244,18 +248,9 @@ export const getShipmentsService = async (partner, query = {}) => {
   const skip = (page - 1) * limit;
 
   const [shipments, total] = await Promise.all([
-    DomesticShipment.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit),
+    DomesticShipment.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
     DomesticShipment.countDocuments(filter),
   ]);
 
-  return {
-    success: true,
-    total,
-    page,
-    limit,
-    shipments,
-  };
+  return { success: true, total, page, limit, shipments };
 };

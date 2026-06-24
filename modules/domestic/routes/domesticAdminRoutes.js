@@ -13,6 +13,7 @@
 import express from 'express';
 import Partner from '../models/partnerModel.js';
 import PartnerWalletLedger from '../models/partnerWalletLedgerModel.js';
+import bcrypt from 'bcryptjs';
 
 const router = express.Router();
 
@@ -22,16 +23,29 @@ const router = express.Router();
 // ─────────────────────────────────────────────────────────────
 router.post('/add-partner', async (req, res) => {
   try {
-    const { name, initialWalletBalance = 0 } = req.body;
+    const { name, initialWalletBalance = 0, email, password } = req.body;
 
     if (!name) {
       return res.status(400).json({ success: false, message: 'name is required' });
+    }
+
+    let hashedPassword = undefined;
+    if (email) {
+      const existing = await Partner.findOne({ email });
+      if (existing) {
+        return res.status(400).json({ success: false, message: 'Email already in use' });
+      }
+      if (password) {
+        hashedPassword = await bcrypt.hash(password, 10);
+      }
     }
 
     const { apiKey, apiSecret } = Partner.generateCredentials();
 
     const partner = await Partner.create({
       name,
+      email,
+      password: hashedPassword,
       apiKey,
       apiSecret,
       walletBalance: initialWalletBalance,

@@ -11,24 +11,28 @@ export const seedRates = async (req, res) => {
     // await Rate.deleteMany({});
     // console.log('Existing rates deleted');
   
-    const seedData = [
+  //   const seedData = [
     
-  {"weight": 0.050, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 966},
-  {"weight": 0.100, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1000},
-  {"weight": 0.150, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1034},
-  {"weight": 0.200, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1051},
-  {"weight": 0.250, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1085},
-  {"weight": 0.300, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1119},
-  {"weight": 0.350, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1144},
-  {"weight": 0.400, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1169},
-  {"weight": 0.450, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1254},
-  {"weight": 0.500, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1347},
-  {"weight": 0.600, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1398},
-  {"weight": 0.700, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1441},
-  {"weight": 0.800, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1492},
-  {"weight": 0.900, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1534},
-  {"weight": 1.000, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1585},
+  // {"weight": 0.050, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 966},
+  // {"weight": 0.100, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1000},
+  // {"weight": 0.150, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1034},
+  // {"weight": 0.200, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1051},
+  // {"weight": 0.250, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1085},
+  // {"weight": 0.300, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1119},
+  // {"weight": 0.350, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1144},
+  // {"weight": 0.400, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1169},
+  // {"weight": 0.450, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1254},
+  // {"weight": 0.500, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1347},
+  // {"weight": 0.600, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1398},
+  // {"weight": 0.700, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1441},
+  // {"weight": 0.800, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1492},
+  // {"weight": 0.900, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1534},
+  // {"weight": 1.000, "dest_country": "Rest of World", "country_code": "ROW", "package": "Direct", "rate": 1585},
 
+  // ]
+
+  const seedData = [
+     { "weight": 0.5, "dest_country": "India", "country_code": "IND", "package": "TTE_BASIC_SURFACE", "rate": 70 },
   ]
     // const seedData = [
     //  { "weight": 0.050, "dest_country": "Rest of World", "country_code": "ROW", "package": "Worldwide", "rate": 966 },

@@ -68,6 +68,7 @@ app.get('/', (req, res) => {
 });
 
 import domesticAdminRoutes from './modules/domestic/routes/domesticAdminRoutes.js';
+
 app.use('/api/domestic-admin', domesticAdminRoutes); 
 
 app.use('/api/user', userRoutes )

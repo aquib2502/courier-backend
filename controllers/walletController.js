@@ -2,6 +2,8 @@ import { StandardCheckoutClient, Env, StandardCheckoutPayRequest } from "@phonep
 import dotenv from 'dotenv'
 import Transaction from "../models/transactionModel.js";
 import User from "../models/userModel.js";
+import Partner from "../modules/domestic/models/partnerModel.js";
+import PartnerWalletLedger from "../modules/domestic/models/partnerWalletLedgerModel.js";
 dotenv.config()
 
 
@@ -113,16 +115,53 @@ const checkStatus = async (req, res) => {
       }
 
       // Increment user's wallet balance instead of replacing it
-      const user = await User.findOneAndUpdate(
+      let user = await User.findOneAndUpdate(
         { _id: userId },
         { $inc: { walletBalance: Number(amount) } }, // increment balance
         { new: true }
       );
 
       if (!user) {
-        console.error('User not found');
+        // If user is not found, try updating partner wallet balance
+        const partner = await Partner.findOneAndUpdate(
+          { _id: userId },
+          { $inc: { walletBalance: Number(amount) } },
+          { new: true }
+        );
+
+        if (partner) {
+          console.log('Updated Partner Wallet Balance:', partner.walletBalance);
+          // Create ledger entry
+          await PartnerWalletLedger.create({
+            partnerId: partner._id,
+            type: 'CREDIT',
+            amount: Number(amount),
+            balanceAfter: partner.walletBalance,
+            remarks: 'Wallet recharge via payment gateway',
+          });
+
+          // Sync linked user if present
+          if (partner.userId) {
+            await User.findByIdAndUpdate(partner.userId, { $inc: { walletBalance: Number(amount) } });
+          }
+        } else {
+          console.error('User or Partner not found for ID:', userId);
+        }
       } else {
-        console.log('Updated User Wallet Balance:', user.walletBalance);
+        // If it's a standard user who has a linked partner profile, sync the partner's balance
+        const partner = await Partner.findOne({ userId: user._id });
+        if (partner) {
+          partner.walletBalance += Number(amount);
+          await partner.save();
+          
+          await PartnerWalletLedger.create({
+            partnerId: partner._id,
+            type: 'CREDIT',
+            amount: Number(amount),
+            balanceAfter: partner.walletBalance,
+            remarks: 'Wallet recharge via payment gateway',
+          });
+        }
       }
 
       return res.redirect(

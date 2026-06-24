@@ -7,6 +7,7 @@ import Transaction from "../models/transactionModel.js";
 import PDFDocument from "pdfkit";
 import moment from "moment";
 import Invoice from "../models/invoiceModel.js";
+import Partner from "../modules/domestic/models/partnerModel.js";
 
 
 const registerUser = async (req, res) => {
@@ -83,10 +84,16 @@ const loginUser = async (req, res) => {
 
     try {
         // Find user by email
-        const user = await User.findOne({ email });
+        let user = await User.findOne({ email });
+        let isPartner = false;
 
         if (!user) {
-            return res.status(400).json({ message: 'User not found. Please register.' });
+            // Check if partner exists
+            user = await Partner.findOne({ email });
+            if (!user) {
+                return res.status(400).json({ message: 'User or Partner not found. Please register.' });
+            }
+            isPartner = true;
         }
 
         // Compare password
@@ -96,27 +103,38 @@ const loginUser = async (req, res) => {
         }
 
         // Generate access token (JWT)
+        const tokenPayload = { userId: user._id, email: user.email };
+        if (isPartner) {
+            tokenPayload.role = 'partner';
+        }
+
         const token = jwt.sign(
-            { userId: user._id, email: user.email },
+            tokenPayload,
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
 
         // Generate refresh token (JWT)
         const refreshToken = jwt.sign(
-            { userId: user._id, email: user.email },
+            tokenPayload,
             process.env.REFRESH_SECRET,
             { expiresIn: '7d' }
         );
 
-res.cookie('refreshToken', refreshToken, {
-  httpOnly: true,
-  secure: true,           // must be HTTPS
-  sameSite: 'None',       // required for cross-domain
-  domain: '.thetraceexpress.com', // note the leading dot
-  path: '/',
-  maxAge: 7 * 24 * 60 * 60 * 1000
-});
+        const host = req.get('host') || '';
+        const cookieOptions = {
+          httpOnly: true,
+          secure: true,           // must be HTTPS
+          sameSite: 'None',       // required for cross-domain
+          path: '/',
+          maxAge: 7 * 24 * 60 * 60 * 1000
+        };
+
+        if (!host.includes('localhost') && !host.includes('127.0.0.1')) {
+          cookieOptions.domain = '.thetraceexpress.com';
+        }
+
+        res.cookie('refreshToken', refreshToken, cookieOptions);
 
         // Send access token to frontend
         res.status(200).json({ message: 'Login successful', token });
@@ -232,9 +250,25 @@ const getOrderCountForUser = async (req, res) => {
       return res.status(400).json({ message: "User ID is required" });
     }
 
-    const user = await User.findById(userId).select("-password -confirmPassword");
+    let user = await User.findById(userId).select("-password -confirmPassword");
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      // Check if it's a partner
+      const partner = await Partner.findById(userId).select("-password");
+      if (partner) {
+        const partnerUser = {
+          _id: partner._id,
+          fullname: partner.name,
+          email: partner.email || "",
+          walletBalance: partner.walletBalance || 0,
+          role: "partner",
+          packageDiscounts: {}
+        };
+        return res.status(200).json({
+          message: "Partner details fetched successfully",
+          user: partnerUser,
+        });
+      }
+      return res.status(404).json({ message: "User or Partner not found" });
     }
 
     // Map -> plain object conversion
@@ -301,9 +335,14 @@ const refreshToken = async (req, res) => {
     // Verify token signature and expiration only
     const payload = jwt.verify(token, process.env.REFRESH_SECRET);
 
+    const tokenPayload = { userId: payload.userId, email: payload.email };
+    if (payload.role) {
+      tokenPayload.role = payload.role;
+    }
+
     // Generate a new access token
     const newAccessToken = jwt.sign(
-      { userId: payload.userId, email: payload.email },
+      tokenPayload,
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );

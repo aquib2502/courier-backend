@@ -26,6 +26,24 @@ const partnerSchema = new mongoose.Schema(
       min: 0,
     },
 
+    email: {
+      type: String,
+      unique: true,
+      sparse: true,
+      lowercase: true,
+      trim: true,
+    },
+
+    password: {
+      type: String,
+    },
+
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
+
     isActive: {
       type: Boolean,
       default: true,
