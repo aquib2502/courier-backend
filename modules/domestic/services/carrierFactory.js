@@ -1,11 +1,11 @@
 import * as shadowfax from './shadowfaxService.js';
-// import * as frontline from './frontlineService.js';  // when ready
-// import * as hilift    from './hiliftService.js';      // when ready
+import * as frontline from './frontlineService.js';  // when ready
+import * as hilift from './hiliftService.js';      // when ready
 
 const providers = {
   shadowfax,
-//   frontline,
-//   hilift,
+  frontline,
+  hilift,
 };
 
 export const getCarrier = (provider) => {
