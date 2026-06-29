@@ -1,4 +1,6 @@
 import Rate from '../models/rateModel.js';
+import DomesticRate from '../models/domesticRateModel.js';
+import { calculateDomesticRate as runCalculator } from '../utils/domesticRateCalculator.js';
 import countries from 'world-countries';
 
 
@@ -821,7 +823,15 @@ export const createRate = async (req, res) => {
 // Get all rates
 export const getAllRates = async (req, res) => {
   try {
-    const rates = await Rate.find().sort({ dest_country: 1, weight: 1 });
+    const { dest_country, package: pkg } = req.query;
+    const filter = {};
+    if (dest_country) {
+      filter.dest_country = dest_country;
+    }
+    if (pkg) {
+      filter.package = pkg;
+    }
+    const rates = await Rate.find(filter).sort({ dest_country: 1, weight: 1 });
     res.status(200).json(rates);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching rates', error: error.message });
@@ -881,4 +891,23 @@ export const getAllCountries = async (req, res) => {
     });
   }
 };
+
+// Calculate domestic rate
+export const calculateDomesticRate = async (req, res) => {
+  try {
+    const { courier, weight, pickup, delivery } = req.body;
+
+    if (!courier || !weight) {
+      return res.status(400).json({ message: 'Courier and weight are required' });
+    }
+
+    const domesticRates = await DomesticRate.find({});
+    const rateVal = runCalculator(courier, weight, pickup, delivery)(domesticRates);
+
+    res.status(200).json({ success: true, rate: rateVal });
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Error calculating domestic rate' });
+  }
+};
+
 

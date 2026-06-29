@@ -1,7 +1,8 @@
 import Partner from '../models/partnerModel.js';
 import PartnerWalletLedger from '../models/partnerWalletLedgerModel.js';
 import DomesticShipment from '../models/domesticShipmentModel.js';
-import Rate from '../../../models/rateModel.js'
+import DomesticRate from '../../../models/domesticRateModel.js';
+import { calculateDomesticRate } from '../../../utils/domesticRateCalculator.js';
 import { CARRIERS } from '../config/carrierConfig.js';
 import { getCarrier } from './carrierFactory.js';
 import User from '../../../models/userModel.js';
@@ -11,26 +12,20 @@ import User from '../../../models/userModel.js';
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Look up the rate for this shipment from the Rates collection.
- * Finds the record where dest_country = "India", package = courierKey,
- * and weight is the smallest slab >= shipment weight.
- * Throws if no matching rate is found so the booking is rejected cleanly.
+ * Look up the rate for this shipment from the DomesticRates collection.
+ * Uses domesticRateCalculator helper to compute dynamic pricing.
  */
-const getRateFromDB = async (courierKey, weight) => {
-  const rate = await Rate.findOne({
-    dest_country: 'India',
-    package: courierKey,
-    weight: { $gte: weight },
-  }).sort({ weight: 1 }); // smallest matching slab first
-
-  if (!rate) {
+const getRateFromDB = async (courierKey, weight, pickup = {}, delivery = {}) => {
+  const domesticRates = await DomesticRate.find({});
+  try {
+    const cost = calculateDomesticRate(courierKey, weight, pickup, delivery)(domesticRates);
+    return cost;
+  } catch (error) {
     throw new Error(
-      `No rate found for courier "${courierKey}" at weight ${weight} kg. ` +
+      `No rate found for courier "${courierKey}" at weight ${weight} kg. Reason: ${error.message}. ` +
       `Please contact TraceExpress to update the rate card.`
     );
   }
-
-  return rate.rate;
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -61,7 +56,7 @@ export const bookShipmentService = async (partner, payload) => {
   const carrier = getCarrier(carrierConfig.provider);
 
   // ── 2. Wallet check ──────────────────────────────────────────
-  const cost = await getRateFromDB(courierKey, weight || 0.5);
+  const cost = await getRateFromDB(courierKey, weight || 0.5, pickup, delivery);
 
   const freshPartner = await Partner.findById(partner._id);
 
