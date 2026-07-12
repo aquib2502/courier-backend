@@ -108,6 +108,7 @@ const createBlog = async (req, res) => {
       seoTitle,
       seoDescription,
       seoKeywords,
+      ctaButtons,
     } = req.body;
 
     if (!title || !content) {
@@ -131,6 +132,12 @@ const createBlog = async (req, res) => {
       try { parsedAuthorSocial = JSON.parse(authorSocial); } catch { parsedAuthorSocial = undefined; }
     }
 
+    // ctaButtons may arrive as a JSON string
+    let parsedCtaButtons = ctaButtons;
+    if (typeof ctaButtons === 'string') {
+      try { parsedCtaButtons = JSON.parse(ctaButtons); } catch { parsedCtaButtons = []; }
+    }
+
     const blog = await Blog.create({
       title,
       slug,
@@ -148,6 +155,7 @@ const createBlog = async (req, res) => {
       seoTitle,
       seoDescription,
       seoKeywords,
+      ctaButtons: parsedCtaButtons || [],
       publishedAt: status === "Published" ? new Date() : null,
     });
 
@@ -319,6 +327,11 @@ const updateBlog = async (req, res) => {
     // Parse authorSocial if it arrived as a JSON string
     if (typeof updateData.authorSocial === 'string') {
       try { updateData.authorSocial = JSON.parse(updateData.authorSocial); } catch { delete updateData.authorSocial; }
+    }
+
+    // Parse ctaButtons if it arrived as a JSON string
+    if (typeof updateData.ctaButtons === 'string') {
+      try { updateData.ctaButtons = JSON.parse(updateData.ctaButtons); } catch { updateData.ctaButtons = []; }
     }
 
     if (req.body.title && req.body.title.trim() !== blog.title.trim()) {
