@@ -110,6 +110,42 @@ const blogSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    // CTA Buttons — inline (embedded in content) or end-of-post
+    ctaButtons: [
+      {
+        label: {
+          type: String,
+          trim: true,
+          required: true,
+        },
+        url: {
+          type: String,
+          trim: true,
+          default: "/",
+        },
+        type: {
+          type: String,
+          enum: ["internal", "external"],
+          default: "internal",
+        },
+        position: {
+          type: String,
+          enum: ["end", "inline"],
+          default: "end",
+        },
+        style: {
+          type: String,
+          enum: ["primary", "secondary", "outline"],
+          default: "primary",
+        },
+        icon: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+      },
+    ],
   },
   {
     timestamps: true,
