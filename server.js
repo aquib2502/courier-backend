@@ -73,6 +73,7 @@ app.use('/api/domestic-admin', domesticAdminRoutes);
 
 app.use('/api/user', userRoutes )
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads/blogs")));
 
 // Use the order routes
 app.use('/api/orders', orderRoutes);

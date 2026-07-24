@@ -2,15 +2,20 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
-// Ensure uploads/blogs directory exists
+const uploadDir = "uploads";
 const blogsUploadDir = "uploads/blogs";
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 if (!fs.existsSync(blogsUploadDir)) {
   fs.mkdirSync(blogsUploadDir, { recursive: true });
 }
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, blogsUploadDir);
+    const isBlog = req.originalUrl?.includes('/blogs') || req.baseUrl?.includes('/blogs');
+    cb(null, isBlog ? blogsUploadDir : uploadDir);
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
