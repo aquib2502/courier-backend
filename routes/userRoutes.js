@@ -1,14 +1,36 @@
 import express from 'express';
 import { registerUser, loginUser, getOrdersByUserId, getUserDetails, updateUserDetails, getPickupAddress , getOrderCountForUser, refreshToken, fetchUserTransaction, getFinalBillPDF} from '../controllers/userController.js';
 import upload from '../middlewares/upload.js';
+import multer from 'multer';
 import authMiddleware from '../middlewares/authMiddleware.js';
 import Clubbing from '../models/clubbingModel.js';
 const router = express.Router();
 
-// Upload multiple files
+// Middleware to handle Multer upload errors gracefully
+const handleUserUpload = (fields) => {
+  return (req, res, next) => {
+    upload.fields(fields)(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ message: 'File size limit exceeded. Each file must be under 5MB.' });
+          }
+          if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+            return res.status(400).json({ message: `Unexpected upload field: ${err.field}` });
+          }
+          return res.status(400).json({ message: err.message });
+        }
+        return res.status(400).json({ message: err.message || 'File upload error' });
+      }
+      next();
+    });
+  };
+};
+
+// Upload multiple files for registration
 router.post(
   "/registerUser",
-  upload.fields([
+  handleUserUpload([
     { name: "aadharProof", maxCount: 1 },
     { name: "panProof", maxCount: 1 },
     { name: "gstProof", maxCount: 1 },

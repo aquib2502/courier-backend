@@ -29,7 +29,7 @@ const registerUser = async (req, res) => {
     }
 
     // 3. File type & size validation — only validate if file exists
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "application/pdf"];
     const allProofs = [
       req.files.aadharProof?.[0],
       req.files.panProof?.[0],
@@ -39,7 +39,7 @@ const registerUser = async (req, res) => {
 
     for (const proof of allProofs) {
       if (!allowedTypes.includes(proof.mimetype)) {
-        return res.status(400).json({ message: "Please upload only JPG, PNG, or PDF files" });
+        return res.status(400).json({ message: "Please upload only JPG, PNG, WEBP, GIF, or PDF files" });
       }
       if (proof.size > 5 * 1024 * 1024) {
         return res.status(400).json({ message: "Each file must be under 5MB" });

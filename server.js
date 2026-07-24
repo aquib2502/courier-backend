@@ -129,6 +129,14 @@ cron.schedule("0 0 * * *", () => {
   cleanupOldLabels();
 });
 
+// Global Error Handling Middleware
+app.use((err, req, res, next) => {
+  console.error("Unhandled API Error:", err);
+  const statusCode = err.statusCode || (res.statusCode >= 400 ? res.statusCode : 400);
+  res.status(statusCode).json({
+    message: err.message || "An unexpected error occurred. Please try again."
+  });
+});
 
-const PORT =process.env.PORT
+const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
