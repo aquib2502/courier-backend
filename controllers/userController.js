@@ -485,26 +485,33 @@ const generateInvoicePDF = (res, orders, invoiceData, targetDate) => {
   // Table rows
   let y = tableTop + 25;
   orders.forEach((order, i) => {
-    const date = moment(order.invoiceDate).format("YYYY-MM-DD");
-    const customer = `${order.firstName.trim()} ${order.lastName.trim()}`;
+    const date = order.invoiceDate ? moment(order.invoiceDate).format("YYYY-MM-DD") : "N/A";
+    const firstName = order.firstName || "";
+    const lastName = order.lastName || "";
+    const customer = `${firstName.trim()} ${lastName.trim()}`.trim() || "N/A";
+    const countryStr = order.country || "";
     const dest =
-      order.country === "United States"
+      countryStr === "United States"
         ? "US"
-        : order.country.slice(0, 2).toUpperCase();
+        : countryStr ? countryStr.slice(0, 2).toUpperCase() : "N/A";
+
+    const invoiceNo = order.invoiceNo || order.lastMileAWB || "N/A";
+    const weight = order.weight != null ? parseFloat(order.weight).toFixed(2) : "0.00";
+    const totalAmount = order.totalAmount != null ? parseFloat(order.totalAmount).toFixed(2) : "0.00";
 
     const row = [
       i + 1,
       date,
-      order.invoiceNo,
+      invoiceNo,
       customer,
       dest,
-      parseFloat(order.weight).toFixed(2),
-      order.totalAmount.toFixed(2),
+      weight,
+      totalAmount,
     ];
 
     x = 40;
     row.forEach((cell, j) => {
-      doc.font("Helvetica").fontSize(9).text(cell.toString(), x, y);
+      doc.font("Helvetica").fontSize(9).text((cell ?? "").toString(), x, y);
       x += colWidths[j];
     });
 
@@ -604,7 +611,7 @@ const getFinalBillPDF = async (req, res) => {
     })
       .sort({ createdAt: -1 })
       .select(
-        "firstName lastName lastMileAWB country weight totalAmount invoiceDate"
+        "firstName lastName invoiceNo lastMileAWB country weight totalAmount invoiceDate"
       );
 
     if (!orders || orders.length === 0) {
@@ -643,11 +650,13 @@ const getFinalBillPDF = async (req, res) => {
 
   } catch (error) {
     console.error("Error generating PDF:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error while generating PDF",
-      error: error.message,
-    });
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: "Server error while generating PDF",
+        error: error.message,
+      });
+    }
   }
 };
 

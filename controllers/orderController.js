@@ -331,22 +331,90 @@ try {
 }
 
 
+// Helper function to build MongoDB order query from request query parameters
+const buildOrderQuery = (queryParams) => {
+  const { date, startDate, endDate, status, paymentStatus, search } = queryParams;
+  const query = {};
+
+  // 1. Date Filtering
+  if (date || startDate || endDate) {
+    const now = new Date();
+    let start, end;
+
+    if (date === 'today') {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    } else if (date === 'yesterday') {
+      const y = new Date(now);
+      y.setDate(y.getDate() - 1);
+      start = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0, 0);
+      end = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59, 999);
+    } else if (date === 'week') {
+      start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      end = new Date();
+    } else if (date === 'month') {
+      start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      end = new Date();
+    } else if (startDate || endDate) {
+      if (startDate) {
+        start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+      }
+      if (endDate) {
+        end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+      }
+    }
+
+    if (start || end) {
+      query.createdAt = {};
+      if (start) query.createdAt.$gte = start;
+      if (end) query.createdAt.$lte = end;
+    }
+  }
+
+  // 2. Order Status Filtering
+  if (status && status !== 'all') {
+    query.orderStatus = new RegExp(`^${status}$`, 'i');
+  }
+
+  // 3. Payment Status Filtering
+  if (paymentStatus && paymentStatus !== 'all') {
+    query.paymentStatus = new RegExp(paymentStatus, 'i');
+  }
+
+  // 4. Search Query Filtering
+  if (search && search.trim()) {
+    const regex = new RegExp(search.trim(), 'i');
+    query.$or = [
+      { invoiceNo: regex },
+      { firstName: regex },
+      { lastName: regex },
+      { mobile: regex },
+      { city: regex },
+      { country: regex },
+      { lastMileAWB: regex }
+    ];
+  }
+
+  return query;
+};
+
 const getTotalOrderCount = async (req, res) => {
   try {
-    // Fetch all orders with populated user and manifest fields
-    const orders = await Order.find()
+    const query = buildOrderQuery(req.query);
+
+    // Fetch orders matching query with populated user and manifest fields
+    const orders = await Order.find(query)
       .populate('user', 'fullname mobile')
       .populate('manifest', 'manifestId status')
       .sort({ createdAt: -1 });
 
-    // Build a map of orderId -> clubbing info for quick lookup
-    // We fetch all clubbings that contain any of these order IDs
     const orderIds = orders.map((o) => o._id);
     const clubbings = await Clubbing.find({ clubbedOrders: { $in: orderIds } }).select(
       'clubName clubbedOrders'
     );
 
-    // Create a map: orderId (string) -> clubName
     const orderClubMap = {};
     for (const club of clubbings) {
       for (const oid of club.clubbedOrders) {
@@ -354,7 +422,6 @@ const getTotalOrderCount = async (req, res) => {
       }
     }
 
-    // Attach clubbing info to each order
     const ordersWithClubInfo = orders.map((order) => {
       const plain = order.toObject();
       const clubName = orderClubMap[order._id.toString()] || null;
@@ -367,6 +434,7 @@ const getTotalOrderCount = async (req, res) => {
     res.status(200).json({
       success: true,
       data: ordersWithClubInfo,
+      totalCount: ordersWithClubInfo.length
     });
   } catch (error) {
     console.error('Error getting total order count:', error);
@@ -390,12 +458,13 @@ const generateSerialNumber = async () => {
 
 const getAllOrders = async (req, res) => {
   try {
-    const orders = await Order.find()
+    const query = buildOrderQuery(req.query);
+
+    const orders = await Order.find(query)
       .populate('user', 'fullname mobile')
       .populate('manifest', 'manifestId status')
       .sort({ createdAt: -1 });
 
-    // Build orderId -> clubName map from the Clubbing collection
     const orderIds = orders.map((o) => o._id);
     const clubbings = await Clubbing.find({ clubbedOrders: { $in: orderIds } }).select(
       'clubName clubbedOrders'
@@ -408,7 +477,6 @@ const getAllOrders = async (req, res) => {
       }
     }
 
-    // Attach clubInfo to every order
     const ordersWithClubInfo = orders.map((order) => {
       const plain = order.toObject();
       const clubName = orderClubMap[order._id.toString()] || null;
@@ -454,7 +522,6 @@ const clubOrders = async (req, res) => {
     }).select('clubName clubbedOrders');
 
     if (existingClubbings.length > 0) {
-      // Build a helpful error message listing which orders are already clubbed
       const conflicts = [];
       for (const club of existingClubbings) {
         for (const oid of club.clubbedOrders) {
@@ -464,7 +531,6 @@ const clubOrders = async (req, res) => {
         }
       }
 
-      // Fetch invoiceNos for better readability in the error
       const conflictOrderIds = conflicts.map((c) => c.orderId);
       const conflictOrders = await Order.find({ _id: { $in: conflictOrderIds } }).select('invoiceNo');
       const invoiceMap = {};
@@ -496,22 +562,36 @@ const clubOrders = async (req, res) => {
     // Create clubbing entry
     const clubbing = new Clubbing({
       clubName,
-      userIds, // keep IDs for reference
-      usernames: users.map(u => u.fullname).join(', '), // Concatenate names
-      useremails: users.map(u => u.email).join(', '), // Concatenate emails
+      userIds,
+      usernames: users.map(u => u.fullname).join(', '),
+      useremails: users.map(u => u.email).join(', '),
       clubbedOrders: orderIds,
     });
 
     await clubbing.save();
 
+    // =====================================================
+    // MERGED INWARD SCANNING: Mark all clubbed orders as inward scanned
+    // =====================================================
+    await Order.updateMany(
+      { _id: { $in: orderIds } },
+      { 
+        $set: { 
+          receivedAt: new Date(),
+          manifestStatus: 'dispatched'
+        } 
+      }
+    );
+
     res.status(201).json({
       success: true,
-      message: 'Orders clubbed successfully',
+      message: 'Orders clubbed and inward-scanned successfully',
       data: {
         id: clubbing._id,
-        users, // Array of user objects with fullname and email
+        users,
         clubbedOrders: clubbing.clubbedOrders,
-        clubbedAt: clubbing.clubbedAt
+        clubbedAt: clubbing.clubbedAt,
+        inwardScanned: true
       }
     });
   } catch (error) {

@@ -180,8 +180,58 @@ const updateUserDetails = async (req, res) => {
 
 const getClubbingDetails = async (req, res) => {
   try {
-    const clubbingDetails = await Clubbing.find({})
-      .sort({ createdAt: -1 }) // 🔥 newest first
+    const { date, startDate, endDate, search } = req.query;
+    const query = {};
+
+    // 1. Date Filtering on clubbedAt / createdAt
+    if (date || startDate || endDate) {
+      const now = new Date();
+      let start, end;
+
+      if (date === 'today') {
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      } else if (date === 'yesterday') {
+        const y = new Date(now);
+        y.setDate(y.getDate() - 1);
+        start = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 0, 0, 0, 0);
+        end = new Date(y.getFullYear(), y.getMonth(), y.getDate(), 23, 59, 59, 999);
+      } else if (date === 'week') {
+        start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        end = new Date();
+      } else if (date === 'month') {
+        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        end = new Date();
+      } else if (startDate || endDate) {
+        if (startDate) {
+          start = new Date(startDate);
+          start.setHours(0, 0, 0, 0);
+        }
+        if (endDate) {
+          end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+        }
+      }
+
+      if (start || end) {
+        query.clubbedAt = {};
+        if (start) query.clubbedAt.$gte = start;
+        if (end) query.clubbedAt.$lte = end;
+      }
+    }
+
+    // 2. Search Query Filtering
+    if (search && search.trim()) {
+      const regex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { clubName: regex },
+        { usernames: regex },
+        { useremails: regex }
+      ];
+    }
+
+    const clubbingDetails = await Clubbing.find(query)
+      .sort({ createdAt: -1 })
       .populate("userIds", "fullname email")
       .populate("clubbedOrders");
 
@@ -189,6 +239,7 @@ const getClubbingDetails = async (req, res) => {
       success: true,
       message: "Clubbing details fetched successfully",
       data: clubbingDetails,
+      totalCount: clubbingDetails.length
     });
   } catch (error) {
     console.error("Error fetching clubbing details:", error);
@@ -614,6 +665,81 @@ export const inwardScan = async (req, res) => {
 
 
 
+
+export const editOrderAndRaiseDispute = async (req, res) => {
+  try {
+    const { orderId, weight, type, description } = req.body;
+
+    if (!orderId) {
+      return res.status(400).json({
+        success: false,
+        message: "Order ID is required",
+      });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // Update weight if provided
+    if (weight !== undefined && weight !== null && weight !== "") {
+      order.weight = weight.toString();
+    }
+
+    const disputeType = type || "weight_discrepancy";
+    const disputeDesc = description || `Weight updated to ${weight} kg for order ${order.invoiceNo}`;
+
+    order.orderStatus = "disputed";
+    order.manifestStatus = "disputed";
+    await order.save();
+
+    const clientId = order.user;
+    const manifestId = order.manifest ? order.manifest.toString() : null;
+
+    // Create Dispute document
+    const dispute = new Dispute({
+      orderIds: [order._id],
+      manifestId,
+      type: disputeType,
+      description: disputeDesc,
+      clientId,
+      clientResponse: "pending",
+      status: "open",
+    });
+    await dispute.save();
+
+    // Trigger user notification
+    try {
+      await raiseDispute({
+        orderIds: [order._id],
+        manifestId,
+        type: disputeType,
+        description: disputeDesc,
+        clientId,
+      });
+    } catch (notifErr) {
+      console.error("Error sending dispute notification:", notifErr);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Order weight updated and dispute notification sent to user!",
+      data: order,
+      dispute,
+    });
+  } catch (error) {
+    console.error("Error in editOrderAndRaiseDispute:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to edit order and raise dispute",
+      error: error.message,
+    });
+  }
+};
 
 export {
   loginAdmin,
