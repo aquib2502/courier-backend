@@ -86,8 +86,7 @@ export const deleteRate = async (req, res) => {
   }
 };
 
-// controllers/countryController.js
-
+// Get all countries
 export const getAllCountries = async (req, res) => {
   try {
     // Format countries for dropdown: { name: "India", code: "IND" }
@@ -95,6 +94,10 @@ export const getAllCountries = async (req, res) => {
       name: country.name.common,
       code: country.cca3, // Alpha-3 code like IND, USA, GBR
     }));
+
+    if (!formattedCountries.some((c) => c.name === "United States (Remote)")) {
+      formattedCountries.push({ name: "United States (Remote)", code: "US-REMOTE" });
+    }
 
     // Sort alphabetically by name
     formattedCountries.sort((a, b) => a.name.localeCompare(b.name));
@@ -125,5 +128,3 @@ export const calculateDomesticRate = async (req, res) => {
     res.status(400).json({ message: error.message || 'Error calculating domestic rate' });
   }
 };
-
-

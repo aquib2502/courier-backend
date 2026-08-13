@@ -3,6 +3,7 @@ import User from "../models/userModel.js";
 import Transaction from "../models/transactionModel.js";
 import { UnitedCallShipmentAPI } from "../utils/UnitedShipmentService.js";
 import { ShipGlobalShipmentCallApi } from "../utils/SGSShipementService.js";
+import { validateUSAZipCode, isUSARemoteZip } from "../utils/zipValidation.js";
 import axios from "axios";
 
 const generateMerchantOrderId = () => {
@@ -89,6 +90,9 @@ export const createOrderService = async (payload) => {
     throw new Error("User ID is required");
   }
 
+  // Validate USA ZIP code against USA Remote rule
+  validateUSAZipCode(orderData.country, orderData.pincode);
+
   const userDoc = await User.findById(user);
 
   if (!userDoc) {
@@ -174,11 +178,17 @@ export const createOrderService = async (payload) => {
     thirdPartyService: null,
   };
 
+  const isUSARemoteOrder =
+    isUSARemoteZip(orderData.pincode) ||
+    orderData.country === "USA Remote" ||
+    orderData.country === "United States (Remote)";
+
   if (shippingPartner.name.includes("QuickExpress")) {
     console.log(
       "QuickExpress detected — skipping shipment API call."
     );
   } else if (
+    isUSARemoteOrder ||
     shippingPartner.name.includes("Self") ||
     shippingPartner.name.includes("Basic")
   ) {
@@ -276,6 +286,9 @@ export const bookDraftOrderService = async (orderId) => {
     throw new Error("Only draft orders can be booked");
   }
 
+  // Validate USA ZIP code against USA Remote rule before booking
+  validateUSAZipCode(order.country, order.pincode);
+
   const userDoc = await User.findById(order.user);
 
   if (!userDoc) {
@@ -324,12 +337,17 @@ export const bookDraftOrderService = async (orderId) => {
   };
 
   const partnerName = order.shippingPartner?.name || "";
+  const isUSARemoteOrder =
+    isUSARemoteZip(order.pincode) ||
+    order.country === "USA Remote" ||
+    order.country === "United States (Remote)";
 
   if (partnerName.includes("QuickExpress")) {
     console.log(
       "QuickExpress detected — skipping shipment API call."
     );
   } else if (
+    isUSARemoteOrder ||
     partnerName.includes("Self") ||
     partnerName.includes("Basic")
   ) {

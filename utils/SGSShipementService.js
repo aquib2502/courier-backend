@@ -356,6 +356,15 @@ function euServices() {
 function getAlpha2CountryCode(countryName) {
   if (!countryName) return null;
   const normalized = countryName.trim().toLowerCase();
+  if (
+    normalized === "usa remote" ||
+    normalized === "united states (remote)" ||
+    normalized === "united states remote" ||
+    normalized === "usa" ||
+    normalized === "us"
+  ) {
+    return "US";
+  }
   const found = Object.entries(COUNTRY_MAP).find(
     ([, value]) => value.toLowerCase() === normalized
   );
