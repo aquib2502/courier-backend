@@ -3,7 +3,7 @@ import User from "../models/userModel.js";
 import Transaction from "../models/transactionModel.js";
 import { UnitedCallShipmentAPI } from "../utils/UnitedShipmentService.js";
 import { ShipGlobalShipmentCallApi } from "../utils/SGSShipementService.js";
-import { validateUSAZipCode, isUSARemoteZip } from "../utils/zipValidation.js";
+import { validateUSAZipCode, isUSARemoteZip, isUSANormalCountry } from "../utils/zipValidation.js";
 import axios from "axios";
 
 const generateMerchantOrderId = () => {
@@ -178,20 +178,70 @@ export const createOrderService = async (payload) => {
     thirdPartyService: null,
   };
 
-  const isUSARemoteOrder =
+  const partnerName = shippingPartner?.name || "";
+  const isUSAOrder =
+    isUSANormalCountry(orderData.country) ||
     isUSARemoteZip(orderData.pincode) ||
     orderData.country === "USA Remote" ||
     orderData.country === "United States (Remote)";
 
-  if (shippingPartner.name.includes("QuickExpress")) {
+  const isPremiumSelf =
+    partnerName.toLowerCase().includes("self") ||
+    partnerName.toLowerCase().includes("basic");
+
+  if (partnerName.includes("QuickExpress")) {
     console.log(
       "QuickExpress detected — skipping shipment API call."
     );
-  } else if (
-    isUSARemoteOrder ||
-    shippingPartner.name.includes("Self") ||
-    shippingPartner.name.includes("Basic")
-  ) {
+  } else if (isUSAOrder) {
+    if (isPremiumSelf) {
+      const shipmentData = await UnitedCallShipmentAPI(
+        newOrder
+      );
+
+      console.log("United API Response:", shipmentData);
+
+      if (shipmentData.status !== "success") {
+        throw new Error(
+          shipmentData.message || "Shipment failed"
+        );
+      }
+
+      shipmentDetails = {
+        trackingNumber: shipmentData.trackingNo,
+        awbNumber: shipmentData.awb,
+        pdf: shipmentData.labelPDF,
+        weight: shipmentData.weight,
+        service: shipmentData.service,
+        thirdPartyService: shipmentData.thirdParty,
+      };
+    } else {
+      shipmentDetails =
+        await ShipGlobalShipmentCallApi(newOrder);
+
+      if (shipmentDetails.status === "failed") {
+        const errorsArray = Array.isArray(
+          shipmentDetails.errors
+        )
+          ? shipmentDetails.errors
+          : shipmentDetails.description &&
+            Array.isArray(shipmentDetails.description)
+          ? shipmentDetails.description
+          : null;
+
+        const error = new Error(
+          errorsArray
+            ? errorsArray.join(", ")
+            : shipmentDetails.description ||
+                "Shipment failed"
+        );
+
+        error.errors = errorsArray;
+
+        throw error;
+      }
+    }
+  } else if (isPremiumSelf) {
     const shipmentData = await UnitedCallShipmentAPI(
       newOrder
     );
@@ -337,20 +387,58 @@ export const bookDraftOrderService = async (orderId) => {
   };
 
   const partnerName = order.shippingPartner?.name || "";
-  const isUSARemoteOrder =
+  const isUSAOrder =
+    isUSANormalCountry(order.country) ||
     isUSARemoteZip(order.pincode) ||
     order.country === "USA Remote" ||
     order.country === "United States (Remote)";
+
+  const isPremiumSelf =
+    partnerName.toLowerCase().includes("self") ||
+    partnerName.toLowerCase().includes("basic");
 
   if (partnerName.includes("QuickExpress")) {
     console.log(
       "QuickExpress detected — skipping shipment API call."
     );
-  } else if (
-    isUSARemoteOrder ||
-    partnerName.includes("Self") ||
-    partnerName.includes("Basic")
-  ) {
+  } else if (isUSAOrder) {
+    if (isPremiumSelf) {
+      const shipmentData =
+        await UnitedCallShipmentAPI(order);
+
+      if (shipmentData.status !== "success") {
+        throw new Error(
+          shipmentData.message || "Shipment failed"
+        );
+      }
+
+      shipmentDetails = {
+        trackingNumber: shipmentData.trackingNo,
+        awbNumber: shipmentData.awb,
+        pdf: shipmentData.labelPDF,
+        weight: shipmentData.weight,
+        service: shipmentData.service,
+        thirdPartyService: shipmentData.thirdParty,
+      };
+    } else {
+      shipmentDetails =
+        await ShipGlobalShipmentCallApi(order);
+
+      if (shipmentDetails.status === "failed") {
+        const errorsArray = Array.isArray(
+          shipmentDetails.errors
+        )
+          ? shipmentDetails.errors
+          : null;
+
+        throw new Error(
+          errorsArray?.join(", ") ||
+            shipmentDetails.description ||
+            "Shipment failed"
+        );
+      }
+    }
+  } else if (isPremiumSelf) {
     const shipmentData =
       await UnitedCallShipmentAPI(order);
 
