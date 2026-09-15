@@ -357,12 +357,25 @@ const buildOrderQuery = (queryParams) => {
       end = new Date();
     } else if (startDate || endDate) {
       if (startDate) {
-        start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
+        const s = new Date(startDate);
+        if (!isNaN(s.getTime())) {
+          start = new Date(s.getFullYear(), s.getMonth(), s.getDate(), 0, 0, 0, 0);
+        }
       }
       if (endDate) {
-        end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        const e = new Date(endDate);
+        if (!isNaN(e.getTime())) {
+          end = new Date(e.getFullYear(), e.getMonth(), e.getDate(), 23, 59, 59, 999);
+        }
+      }
+      if (startDate && !endDate && start) {
+        end = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 23, 59, 59, 999);
+      }
+    } else if (date && date !== 'all') {
+      const d = new Date(date);
+      if (!isNaN(d.getTime())) {
+        start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+        end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
       }
     }
 

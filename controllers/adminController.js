@@ -204,30 +204,58 @@ const getClubbingDetails = async (req, res) => {
         end = new Date();
       } else if (startDate || endDate) {
         if (startDate) {
-          start = new Date(startDate);
-          start.setHours(0, 0, 0, 0);
+          const s = new Date(startDate);
+          if (!isNaN(s.getTime())) {
+            start = new Date(s.getFullYear(), s.getMonth(), s.getDate(), 0, 0, 0, 0);
+          }
         }
         if (endDate) {
-          end = new Date(endDate);
-          end.setHours(23, 59, 59, 999);
+          const e = new Date(endDate);
+          if (!isNaN(e.getTime())) {
+            end = new Date(e.getFullYear(), e.getMonth(), e.getDate(), 23, 59, 59, 999);
+          }
+        }
+        if (startDate && !endDate && start) {
+          end = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 23, 59, 59, 999);
+        }
+      } else if (date && date !== 'all') {
+        const d = new Date(date);
+        if (!isNaN(d.getTime())) {
+          start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+          end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
         }
       }
 
       if (start || end) {
-        query.clubbedAt = {};
-        if (start) query.clubbedAt.$gte = start;
-        if (end) query.clubbedAt.$lte = end;
+        const dateQuery = {};
+        if (start) dateQuery.$gte = start;
+        if (end) dateQuery.$lte = end;
+
+        query.$or = [
+          { clubbedAt: dateQuery },
+          { createdAt: dateQuery }
+        ];
       }
     }
 
     // 2. Search Query Filtering
     if (search && search.trim()) {
       const regex = new RegExp(search.trim(), 'i');
-      query.$or = [
+      const searchOr = [
         { clubName: regex },
         { usernames: regex },
         { useremails: regex }
       ];
+
+      if (query.$or) {
+        query.$and = [
+          { $or: query.$or },
+          { $or: searchOr }
+        ];
+        delete query.$or;
+      } else {
+        query.$or = searchOr;
+      }
     }
 
     const clubbingDetails = await Clubbing.find(query)
