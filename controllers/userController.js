@@ -504,7 +504,9 @@ const generateInvoicePDF = (res, orders, invoiceData, targetDate) => {
 
     const invoiceNo = order.invoiceNo || order.lastMileAWB || "N/A";
     const weight = order.weight != null ? parseFloat(order.weight).toFixed(2) : "0.00";
-    const totalAmount = order.totalAmount != null ? parseFloat(order.totalAmount).toFixed(2) : "0.00";
+    const rawTotal = order.totalAmount != null ? Number(order.totalAmount) : 0;
+    // Remove 18% GST from totalAmount (base amount = totalAmount / 1.18)
+    const amountWithoutGST = (rawTotal / 1.18).toFixed(2);
 
     const row = [
       i + 1,
@@ -513,7 +515,7 @@ const generateInvoicePDF = (res, orders, invoiceData, targetDate) => {
       customer,
       dest,
       weight,
-      totalAmount,
+      amountWithoutGST,
     ];
 
     let x = 40;
@@ -599,7 +601,7 @@ const getFinalBillPDF = async (req, res) => {
     const startOfMonth = targetDate.clone().startOf("month").toDate();
     const endOfMonth = targetDate.clone().endOf("month").toDate();
 
-    // ✅ Fetch ALL orders placed/dated in this month
+    // ✅ Fetch ALL orders placed/dated in this month (sorted ascending so latest comes at the end of the PDF)
     const orders = await Order.find({
       user: userId,
       $or: [
@@ -607,7 +609,7 @@ const getFinalBillPDF = async (req, res) => {
         { createdAt: { $gte: startOfMonth, $lte: endOfMonth } }
       ]
     })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .select(
         "firstName lastName invoiceNo lastMileAWB country weight totalAmount invoiceDate createdAt"
       );
