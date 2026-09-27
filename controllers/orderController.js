@@ -7,7 +7,7 @@ import { UnitedCallShipmentAPI } from '../utils/UnitedShipmentService.js';
 import Transaction from '../models/transactionModel.js';
 import { ShipGlobalShipmentCallApi } from '../utils/SGSShipementService.js';
 import axios from 'axios';
-import { bookDraftOrderService, createOrderService } from '../services/orderService.js';
+import { bookDraftOrderService, createOrderService, generateSerialNumber } from '../services/orderService.js';
 
 
 const generateMerchantOrderId = () => {
@@ -396,17 +396,45 @@ const buildOrderQuery = (queryParams) => {
     query.paymentStatus = new RegExp(paymentStatus, 'i');
   }
 
-  // 4. Search Query Filtering
+  // 4. Search Query Filtering (Case-insensitive for Customer Name, City, Country, State, Mobile, AWB, etc.)
   if (search && search.trim()) {
-    const regex = new RegExp(search.trim(), 'i');
+    const rawSearch = search.trim();
+    const escapedSearch = rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(escapedSearch, 'i');
+
     query.$or = [
       { invoiceNo: regex },
       { firstName: regex },
       { lastName: regex },
       { mobile: regex },
+      { email: regex },
       { city: regex },
+      { state: regex },
       { country: regex },
-      { lastMileAWB: regex }
+      { pincode: regex },
+      { pickupAddress: regex },
+      { address1: regex },
+      { address2: regex },
+      { invoiceName: regex },
+      { lastMileAWB: regex },
+      { 'shipmentDetails.trackingNumber': regex },
+      { 'shipmentDetails.awbNumber': regex },
+      { 'productItems.productName': regex },
+      {
+        $expr: {
+          $regexMatch: {
+            input: {
+              $concat: [
+                { $ifNull: ['$firstName', ''] },
+                ' ',
+                { $ifNull: ['$lastName', ''] }
+              ]
+            },
+            regex: escapedSearch,
+            options: 'i'
+          }
+        }
+      }
     ];
   }
 
@@ -458,15 +486,7 @@ const getTotalOrderCount = async (req, res) => {
   }
 };
 
-// Generate serial number automatically
-const generateSerialNumber = async () => {
-  // Count existing orders
-  const totalCount = await Order.countDocuments({});
 
-  // Format the new serial number
-  const paddedCount = String(totalCount + 1).padStart(6, '0');
-  return `TTE${paddedCount}`;
-};
 
 
 const getAllOrders = async (req, res) => {

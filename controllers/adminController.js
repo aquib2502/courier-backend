@@ -240,7 +240,9 @@ const getClubbingDetails = async (req, res) => {
 
     // 2. Search Query Filtering
     if (search && search.trim()) {
-      const regex = new RegExp(search.trim(), 'i');
+      const rawSearch = search.trim();
+      const escapedSearch = rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escapedSearch, 'i');
       const searchOr = [
         { clubName: regex },
         { usernames: regex },

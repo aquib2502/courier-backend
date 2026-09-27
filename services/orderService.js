@@ -6,6 +6,8 @@ import { ShipGlobalShipmentCallApi } from "../utils/SGSShipementService.js";
 import { validateUSAZipCode, isUSARemoteZip, isUSANormalCountry } from "../utils/zipValidation.js";
 import axios from "axios";
 
+import Counter from "../models/counterModel.js";
+
 const generateMerchantOrderId = () => {
   const timestamp = Date.now();
   const randomPart = Math.floor(Math.random() * 1000);
@@ -13,10 +15,40 @@ const generateMerchantOrderId = () => {
   return `TET${timestamp}${String(randomPart).padStart(3, "0")}`;
 };
 
-const generateSerialNumber = async () => {
-  const totalCount = await Order.countDocuments({});
-  const paddedCount = String(totalCount + 1).padStart(6, "0");
+export const generateSerialNumber = async () => {
+  const existingCounter = await Counter.findById("invoiceNo");
+  if (!existingCounter) {
+    const totalCount = await Order.countDocuments({});
 
+    const lastOrder = await Order.findOne({ invoiceNo: /^TTE\d+$/ })
+      .sort({ invoiceNo: -1 })
+      .select("invoiceNo");
+
+    let highestSeq = totalCount;
+    if (lastOrder && lastOrder.invoiceNo) {
+      const numMatch = lastOrder.invoiceNo.match(/\d+/);
+      if (numMatch) {
+        const num = parseInt(numMatch[0], 10);
+        if (!isNaN(num) && num > highestSeq) {
+          highestSeq = num;
+        }
+      }
+    }
+
+    await Counter.updateOne(
+      { _id: "invoiceNo" },
+      { $setOnInsert: { seq: highestSeq } },
+      { upsert: true }
+    );
+  }
+
+  const counter = await Counter.findByIdAndUpdate(
+    "invoiceNo",
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  const paddedCount = String(counter.seq).padStart(6, "0");
   return `TTE${paddedCount}`;
 };
 

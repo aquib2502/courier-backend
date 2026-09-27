@@ -64,7 +64,7 @@ const orderSchema = new Schema({
   height: { type: String },
 
   // Order information
-  invoiceNo: { type: String },
+  invoiceNo: { type: String, index: true },
   invoiceCurrency: { type: String },
   invoiceDate: { type: Date },
 
