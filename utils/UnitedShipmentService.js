@@ -313,7 +313,19 @@ export const UnitedCallShipmentAPI = async (orderData) => {
 
   if (destCountry === 'US') {
     if (isPremiumSelf) {
-      // User's specific rule:
+      // Default every Premium Self booking to Priority Post US (PRIORITY-POST-US)
+      candidateServices = [
+        {
+          code: 'PRIORITY-POST-US',
+          name: 'UNITED PRIOR POST',
+          courier: 'EC01',
+          network: 'USPS ONLY'
+        }
+      ];
+
+      /*
+      // --- COMMENTED OUT: Check POST-US as first preference before Prior Post ---
+      // User's previous rule:
       // First check whether United Post (POST-US, GOFO, max 5kg) is available.
       // If yes, book from that.
       // If no, book from Prior Post (PRIORITY-POST-US, EC01/USPS, max 6kg).
@@ -346,6 +358,8 @@ export const UnitedCallShipmentAPI = async (orderData) => {
           }
         ];
       }
+      // --------------------------------------------------------------------------
+      */
     } else {
       // Default USA mapping (e.g. Ground or Express)
       candidateServices = [
