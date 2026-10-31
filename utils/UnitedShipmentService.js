@@ -2,6 +2,7 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import moment from 'moment';
+import User from '../models/userModel.js';
 
 // Configuration
 const getUWCConfig = () => ({
@@ -212,8 +213,11 @@ export const validateAndCleanMobileNumber = (phone, destCountryCode = 'US', fiel
     if (normalized.length === 12 && normalized.startsWith('91')) {
       normalized = normalized.slice(2);
     }
-    if (normalized.length !== 10) {
-      throw new Error(`Wrong mobile number format: ${fieldLabel} must be a 10-digit Indian mobile number`);
+    if (normalized.length === 11 && normalized.startsWith('0')) {
+      normalized = normalized.slice(1);
+    }
+    if (normalized.length !== 10 || !/^[6-9]\d{9}$/.test(normalized)) {
+      throw new Error(`Wrong mobile number format: ${fieldLabel} must be a 10-digit Indian mobile number starting with 6, 7, 8 or 9`);
     }
     return normalized;
   }
@@ -249,9 +253,43 @@ export const validateAndCleanMobileNumber = (phone, destCountryCode = 'US', fiel
 };
 
 /**
+ * Resolves a constant valid Indian mobile number for shipper:
+ * Uses user.phone or user.mobile from the user model if valid,
+ * otherwise falls back safely to constant default (starts with 6-9, 10 digits).
+ * NEVER uses the consignee / customer's mobile number.
+ */
+export const resolveShipperPhoneNumber = (user, orderData = {}) => {
+  const candidates = [
+    user?.phone,
+    user?.mobile,
+    user?.pickupAddresses?.[0]?.contactNumber,
+    orderData?.userPhone,
+    orderData?.userMobile,
+    orderData?.shipperPhone,
+    orderData?.shipperMobile,
+    process.env.UWC_SHIPPER_PHONE,
+    '9876543210'
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      const cleaned = validateAndCleanMobileNumber(candidate, 'IN', 'Shipper phone number');
+      if (cleaned && /^[6-9]\d{9}$/.test(cleaned)) {
+        return cleaned;
+      }
+    } catch {
+      // Continue to next candidate
+    }
+  }
+
+  return '9876543210';
+};
+
+/**
  * Builds the draft request payload for UWC
  */
-const buildDraftPayload = (orderData, serviceCode, destCountryCode) => {
+const buildDraftPayload = (orderData, serviceCode, destCountryCode, userDoc = null) => {
   const getFullName = () => `${orderData.firstName || ''} ${orderData.lastName || ''}`.trim() || orderData.firstName || 'Customer';
 
   const productItems = Array.isArray(orderData.productItems) && orderData.productItems.length > 0
@@ -274,8 +312,16 @@ const buildDraftPayload = (orderData, serviceCode, destCountryCode) => {
 
   const weight = parseFloat(orderData.weight || 0.5);
 
-  const shipperPhone = validateAndCleanMobileNumber(orderData.shipperMobile || orderData.mobile || '9876543210', 'IN', 'Shipper mobile number');
-  const consigneePhone = validateAndCleanMobileNumber(orderData.mobile, destCountryCode, 'Consignee mobile number');
+  // Shipper phone must be constant user.phone / user.mobile or safe constant (starts with 6-9, 10 digits).
+  // Consignee phone is the customer.phone (orderData.mobile / customerPhone).
+  const shipperPhone = resolveShipperPhoneNumber(userDoc, orderData);
+
+  const customerPhone =
+    orderData.customer?.phone ||
+    orderData.customerPhone ||
+    orderData.mobile ||
+    orderData.phone;
+  const consigneePhone = validateAndCleanMobileNumber(customerPhone, destCountryCode, 'Consignee mobile number');
 
   return {
     service_code: serviceCode,
@@ -387,6 +433,21 @@ export const UnitedCallShipmentAPI = async (orderData) => {
   const destCountry = resolveCountryCode(orderData.country);
   const weight = parseFloat(orderData.weight || 0.5);
 
+  // Resolve user document for shipper phone from orderData or DB
+  let user =
+    orderData.userDoc ||
+    (orderData.user && typeof orderData.user === 'object' && (orderData.user.phone || orderData.user.mobile)
+      ? orderData.user
+      : null);
+
+  if (!user && orderData.user) {
+    try {
+      user = await User.findById(orderData.user).lean();
+    } catch (err) {
+      console.warn('[UWC] Could not fetch user document for shipper phone:', err.message);
+    }
+  }
+
   const partnerName = (orderData.shippingPartner?.name || '').toLowerCase();
   const isPremiumSelf = partnerName.includes('self') || partnerName.includes('basic');
 
@@ -488,7 +549,9 @@ export const UnitedCallShipmentAPI = async (orderData) => {
       console.log(`[UWC] Attempting booking with service: ${candidate.code} (${candidate.name})...`);
 
       // 1. Create Draft
-      const draftPayload = buildDraftPayload(orderData, candidate.code, destCountry);
+      const draftPayload = buildDraftPayload(orderData, candidate.code, destCountry, user);
+      console.log(`[UWC] Submitting draft payload to ${config.baseUrl}/api/v1/manifests:`, JSON.stringify(draftPayload, null, 2));
+
       const draftResponse = await axios.post(
         `${config.baseUrl}/api/v1/manifests`,
         draftPayload,

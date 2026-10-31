@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
     confirmPassword: { type: String, minlength: 6 },
     walletBalance: { type: Number, default: 0 }, // <-- wallet balance
     mobile: { type: String, trim: true },
+    phone: { type: String, trim: true },
     kycStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
     kycRejectReason: {type:String, required:false},
     // Multiple pickup addresses as an array of objects

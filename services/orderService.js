@@ -157,6 +157,9 @@ export const createOrderService = async (payload) => {
     },
   });
 
+  newOrder.userDoc = userDoc;
+  newOrder.userPhone = userDoc.phone || userDoc.mobile;
+
   // =====================================================
   // DRAFT ORDER FLOW (NEW)
   // =====================================================
@@ -395,6 +398,9 @@ export const bookDraftOrderService = async (orderId) => {
   if (!userDoc) {
     throw new Error("User not found");
   }
+
+  order.userDoc = userDoc;
+  order.userPhone = userDoc.phone || userDoc.mobile;
 
   const totalAmount = order.totalAmount;
 
