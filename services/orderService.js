@@ -1,7 +1,7 @@
 import Order from "../models/orderModel.js";
 import User from "../models/userModel.js";
 import Transaction from "../models/transactionModel.js";
-import { UnitedCallShipmentAPI } from "../utils/UnitedShipmentService.js";
+import { UnitedCallShipmentAPI, validateAndCleanMobileNumber } from "../utils/UnitedShipmentService.js";
 import { ShipGlobalShipmentCallApi } from "../utils/SGSShipementService.js";
 import { validateUSAZipCode, isUSARemoteZip, isUSANormalCountry } from "../utils/zipValidation.js";
 import axios from "axios";
@@ -122,6 +122,14 @@ export const createOrderService = async (payload) => {
     throw new Error("User ID is required");
   }
 
+  // Validate mobile number format and strip country code
+  const cleanedMobile = validateAndCleanMobileNumber(
+    orderData.mobile,
+    orderData.country,
+    "Mobile number"
+  );
+  orderData.mobile = cleanedMobile;
+
   // Validate USA ZIP code against USA Remote rule
   validateUSAZipCode(orderData.country, orderData.pincode);
 
@@ -139,6 +147,7 @@ export const createOrderService = async (payload) => {
 
   const newOrder = new Order({
     ...orderData,
+    mobile: cleanedMobile,
     user,
     totalAmount,
     invoiceNo: serialNumber,
@@ -366,6 +375,16 @@ export const bookDraftOrderService = async (orderId) => {
 
   if (order.orderStatus !== "Drafts") {
     throw new Error("Only draft orders can be booked");
+  }
+
+  // Validate mobile number format and strip country code before booking
+  const cleanedMobile = validateAndCleanMobileNumber(
+    order.mobile,
+    order.country,
+    "Mobile number"
+  );
+  if (order.mobile !== cleanedMobile) {
+    order.mobile = cleanedMobile;
   }
 
   // Validate USA ZIP code against USA Remote rule before booking

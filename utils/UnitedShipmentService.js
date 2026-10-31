@@ -166,6 +166,89 @@ const resolveCountryCode = (country) => {
 };
 
 /**
+ * Strips international country code prefix (e.g., +1, +91, 00, etc.) from phone numbers
+ */
+/**
+ * Strips international country code prefix (e.g., +1, +91, 00, etc.) and validates mobile number format.
+ * Throws a clear error if the number format is invalid.
+ */
+export const validateAndCleanMobileNumber = (phone, destCountryCode = 'US', fieldLabel = 'mobile number') => {
+  if (!phone || !String(phone).trim()) {
+    throw new Error(`Wrong mobile number format: ${fieldLabel} is required`);
+  }
+
+  let cleaned = String(phone).trim();
+
+  // If starts with +, remove +
+  if (cleaned.startsWith('+')) {
+    cleaned = cleaned.substring(1).trim();
+  } else if (cleaned.startsWith('00')) {
+    cleaned = cleaned.substring(2).trim();
+  }
+
+  // Remove any non-digit characters (spaces, hyphens, parentheses)
+  const digits = cleaned.replace(/\D/g, '');
+  if (!digits) {
+    throw new Error(`Wrong mobile number format: ${fieldLabel} contains no digits`);
+  }
+
+  const country = (destCountryCode || '').toUpperCase();
+  let normalized = digits;
+
+  // USA / Canada (NANP): 10-digit number. If 11 digits starting with 1, strip leading 1
+  if (country === 'US' || country === 'CA') {
+    if (normalized.length === 11 && normalized.startsWith('1')) {
+      normalized = normalized.slice(1);
+    }
+    // Must be exactly 10 digits
+    if (normalized.length !== 10) {
+      throw new Error(`Wrong mobile number format: ${fieldLabel} must be 10 digits for ${country}`);
+    }
+    return normalized;
+  }
+
+  // India: 10-digit mobile. If 12 digits starting with 91, strip 91
+  if (country === 'IN' || country === 'MH' || country === 'DL') {
+    if (normalized.length === 12 && normalized.startsWith('91')) {
+      normalized = normalized.slice(2);
+    }
+    if (normalized.length !== 10) {
+      throw new Error(`Wrong mobile number format: ${fieldLabel} must be a 10-digit Indian mobile number`);
+    }
+    return normalized;
+  }
+
+  // UK: 10 digits without leading 44
+  if (country === 'GB' || country === 'UK') {
+    if (normalized.length === 12 && normalized.startsWith('44')) {
+      normalized = normalized.slice(2);
+    }
+    if (normalized.length < 9 || normalized.length > 11) {
+      throw new Error(`Wrong mobile number format: ${fieldLabel} must be valid UK number`);
+    }
+    return normalized;
+  }
+
+  // Germany: without leading 49
+  if (country === 'DE') {
+    if (normalized.startsWith('49') && normalized.length > 10) {
+      normalized = normalized.slice(2);
+    }
+    if (normalized.length < 9 || normalized.length > 12) {
+      throw new Error(`Wrong mobile number format: ${fieldLabel} must be valid German phone number`);
+    }
+    return normalized;
+  }
+
+  // General international mobile check: valid phone numbers are 7 to 15 digits (ITU-T E.164)
+  if (normalized.length < 7 || normalized.length > 15) {
+    throw new Error(`Wrong mobile number format: ${fieldLabel} must be between 7 and 15 digits`);
+  }
+
+  return normalized;
+};
+
+/**
  * Builds the draft request payload for UWC
  */
 const buildDraftPayload = (orderData, serviceCode, destCountryCode) => {
@@ -191,6 +274,9 @@ const buildDraftPayload = (orderData, serviceCode, destCountryCode) => {
 
   const weight = parseFloat(orderData.weight || 0.5);
 
+  const shipperPhone = validateAndCleanMobileNumber(orderData.shipperMobile || orderData.mobile || '9876543210', 'IN', 'Shipper mobile number');
+  const consigneePhone = validateAndCleanMobileNumber(orderData.mobile, destCountryCode, 'Consignee mobile number');
+
   return {
     service_code: serviceCode,
     delivery_destination: destCountryCode,
@@ -206,7 +292,7 @@ const buildDraftPayload = (orderData, serviceCode, destCountryCode) => {
       pincode: '400059',
       city: 'Mumbai',
       state: normalizeIndianState(orderData.pickupAddressState || 'MH'),
-      phone_number: (orderData.mobile || '9876543210').replace(/\D/g, '').slice(-10),
+      phone_number: shipperPhone,
       email: 'shipping@asenterprises.com',
       kyc_type: 'GST (Normal)',
       kyc_number: '27GWAPS7865D1Z1'
@@ -219,7 +305,7 @@ const buildDraftPayload = (orderData, serviceCode, destCountryCode) => {
       zip_code: String(orderData.pincode || '').replace(/[^a-zA-Z0-9]/g, '').trim(),
       city: orderData.city || '',
       state: destCountryCode === 'US' ? normalizeUSState(orderData.state) : (orderData.state || ''),
-      phone_number: orderData.mobile || '',
+      phone_number: consigneePhone,
       email: orderData.email || 'customer@example.com'
     },
     packages: [
@@ -462,6 +548,11 @@ export const UnitedCallShipmentAPI = async (orderData) => {
       };
 
     } catch (err) {
+      // If it is a client validation error (e.g. Wrong mobile number format), throw immediately
+      if (err.message && err.message.startsWith('Wrong mobile number format')) {
+        throw err;
+      }
+
       const errMsg = err.response?.data?.message || err.response?.data?.errors
         ? JSON.stringify(err.response?.data?.errors)
         : err.message;
